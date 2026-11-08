@@ -12,6 +12,7 @@ import net.minecraft.command.Commands;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.GameRules;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.forgespi.language.IModInfo;
 
@@ -33,6 +34,8 @@ public class DiscordCommand {
 			.executes( DiscordCommand::showGamerules ) );
 		discordCommand.then( Commands.literal( "mods" )
 			.executes( DiscordCommand::showMods ) );
+		discordCommand.then( Commands.literal( "weather" )
+			.executes( DiscordCommand::showWeather ) );
 		dispatcher.register( discordCommand );
 	}
 	
@@ -96,6 +99,25 @@ public class DiscordCommand {
 				);
 			}
 		} );
+		return Command.SINGLE_SUCCESS;
+	}
+	
+	private static int showWeather( CommandContext<CommandSource> context ) {
+		
+		CommandSource source = context.getSource();
+		ServerWorld level = source.getWorld();
+		String weather;
+		if( level.isThundering() ) {
+			weather = "thundering";
+		} else if( level.isRaining() ) {
+			weather = "raining";
+		} else {
+			weather = "clear";
+		}
+		source.sendFeedback(
+			new StringTextComponent( "The weather is currently " + weather + "." ),
+			false
+		);
 		return Command.SINGLE_SUCCESS;
 	}
 	

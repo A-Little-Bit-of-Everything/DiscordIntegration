@@ -34,9 +34,21 @@ public class ServerConfig {
 	
 	private static final ForgeConfigSpec.IntValue MAX_CHAR_COUNT;
 	
+	private static final ForgeConfigSpec.ConfigValue<String> SERVER_WEBHOOK_NAME;
+	
+	private static final ForgeConfigSpec.ConfigValue<String> SERVER_WEBHOOK_AVATAR_URL;
+	
 	private static final ForgeConfigSpec.ConfigValue<String> START_MESSAGE;
 	
 	private static final ForgeConfigSpec.ConfigValue<String> STOP_MESSAGE;
+	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_JOINED_USE_PLAYER_WEBHOOK;
+	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_LEFT_USE_PLAYER_WEBHOOK;
+	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_DIED_USE_PLAYER_WEBHOOK;
+	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_GOT_ADVANCEMENT_USE_PLAYER_WEBHOOK;
 	
 	private static final ForgeConfigSpec.BooleanValue TRANSMIT_BOT_MESSAGES;
 	
@@ -57,12 +69,30 @@ public class ServerConfig {
 		MAX_CHAR_COUNT = BUILDER.comment( "How long should Discord messages send to Minecraft Chat be at most? " +
 			"If the value is -1, there is no limit to the length." )
 			.defineInRange( "max_char_count", -1, -1, 2000 );
+		SERVER_WEBHOOK_NAME = BUILDER.comment(
+			"Custom webhook display name used for server messages (start, stop, crash, console say/me, etc.)." )
+			.define( "server_webhook_name", "Minecraft Server" );
+		SERVER_WEBHOOK_AVATAR_URL = BUILDER.comment(
+			"Custom webhook avatar URL used for server messages. Leave empty to use the bot's Discord avatar." )
+			.define( "server_webhook_avatar_url", "" );
 		BUILDER.comment( "Messages shown on Discord" )
 			.push( "messages" );
 		START_MESSAGE = BUILDER.comment( "Messages shown in Discord, if the Minecraft server started." )
 			.define( "start", "Server started" );
 		STOP_MESSAGE = BUILDER.comment( "Messages shown in Discord, if the Minecraft server stoped." )
 			.define( "stop", "Server stopped" );
+		PLAYER_JOINED_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should player joined messages use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "player_joined_use_player_webhook", true );
+		PLAYER_LEFT_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should player left messages use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "player_left_use_player_webhook", true );
+		PLAYER_DIED_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should player death messages use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "player_died_use_player_webhook", true );
+		PLAYER_GOT_ADVANCEMENT_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should advancement messages use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "player_got_advancement_use_player_webhook", true );
 		BUILDER.pop();
 		BUILDER.comment( "Options how to deal with other bots" )
 			.push( "other_bots" );
@@ -129,6 +159,12 @@ public class ServerConfig {
 			true,
 			"shows the tps statistic of the server and it's dimensions."
 		) );
+		commands.add( new CommandConfig(
+			"weather",
+			"discord weather",
+			true,
+			"shows the current weather on the server."
+		) );
 		if( VersionHelper.isDependecyWithVersionPresent( "dimension_access_manager" ) ) {
 			commands.add( new CommandConfig(
 				"dimensions",
@@ -163,6 +199,8 @@ public class ServerConfig {
 		LOGGER.info( "{} = {}", COMMAND_PREFIX.getPath(), COMMAND_PREFIX.get() );
 		LOGGER.info( "{} = {}", TRANSMIT_BOT_MESSAGES.getPath(), TRANSMIT_BOT_MESSAGES.get() );
 		LOGGER.info( "{} = {}", MAX_CHAR_COUNT.getPath(), MAX_CHAR_COUNT.get() );
+		LOGGER.info( "{} = {}", SERVER_WEBHOOK_NAME.getPath(), SERVER_WEBHOOK_NAME.get() );
+		LOGGER.info( "{} = {}", SERVER_WEBHOOK_AVATAR_URL.getPath(), SERVER_WEBHOOK_AVATAR_URL.get() );
 		LOGGER.info( "{} = {}", COMMANDS.getPath(), COMMANDS.get() );
 		LOGGER.info( "\"{}\" Server Config loaded", MOD_NAME );
 	}
@@ -202,6 +240,16 @@ public class ServerConfig {
 		return MAX_CHAR_COUNT.get();
 	}
 	
+	public static String getServerWebhookName() {
+		
+		return SERVER_WEBHOOK_NAME.get();
+	}
+	
+	public static String getServerWebhookAvatarUrl() {
+		
+		return SERVER_WEBHOOK_AVATAR_URL.get();
+	}
+	
 	public static String getStartMessage() {
 		
 		return START_MESSAGE.get();
@@ -212,8 +260,40 @@ public class ServerConfig {
 		return STOP_MESSAGE.get();
 	}
 	
+	public static boolean getPlayerJoinedUsePlayerWebhook() {
+		
+		return PLAYER_JOINED_USE_PLAYER_WEBHOOK.get();
+	}
+	
+	public static boolean getPlayerLeftUsePlayerWebhook() {
+		
+		return PLAYER_LEFT_USE_PLAYER_WEBHOOK.get();
+	}
+	
+	public static boolean getPlayerDiedUsePlayerWebhook() {
+		
+		return PLAYER_DIED_USE_PLAYER_WEBHOOK.get();
+	}
+	
+	public static boolean getPlayerGotAdvancementUsePlayerWebhook() {
+		
+		return PLAYER_GOT_ADVANCEMENT_USE_PLAYER_WEBHOOK.get();
+	}
+	
 	public static List<? extends AbstractCommentedConfig> getCommands() {
 		
-		return COMMANDS.get();
+		List<AbstractCommentedConfig> result = new ArrayList<>( COMMANDS.get() );
+		boolean hasWeather = result.stream()
+			.anyMatch( c -> "discord weather".equals( CommandConfig.getMinecraftCommand( c ) ) ||
+				"weather".equals( CommandConfig.getDiscordCommand( c ) ) );
+		if( !hasWeather ) {
+			result.add( new CommandConfig(
+				"weather",
+				"discord weather",
+				true,
+				"shows the current weather on the server."
+			) );
+		}
+		return result;
 	}
 }
