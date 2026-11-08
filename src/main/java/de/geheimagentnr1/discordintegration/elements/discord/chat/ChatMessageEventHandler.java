@@ -1,22 +1,23 @@
 package de.geheimagentnr1.discordintegration.elements.discord.chat;
 
-import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import de.geheimagentnr1.discordintegration.config.ServerConfig;
 import de.geheimagentnr1.discordintegration.elements.discord.DiscordManager;
 import de.geheimagentnr1.discordintegration.elements.discord.DiscordMessageBuilder;
 import de.geheimagentnr1.discordintegration.elements.discord.commands.DiscordCommandHandler;
 import de.geheimagentnr1.minecraft_forge_api.util.MessageUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.minecraft.commands.CommandBuildContext;
-import net.minecraft.commands.arguments.ComponentArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
@@ -24,6 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Map;
 
 
+@Log4j2
 @RequiredArgsConstructor
 public class ChatMessageEventHandler extends ListenerAdapter {
 	
@@ -44,115 +46,91 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 	private final DiscordMessageBuilder discordMessageBuilder;
 	
 	@Override
-	public void onChannelDelete( @NotNull ChannelDeleteEvent event ) {
+	public void onSlashCommandInteraction( @NotNull SlashCommandInteractionEvent event ) {
 		
-		if( event.getChannelType() == ChannelType.TEXT &&
-			chatManager.isCorrectChannel( event.getChannel().getIdLong() ) ) {
-			chatManager.init();
-		}
+		discordCommandHandler.handleSlashCommandInteraction( event );
 	}
 	
 	@Override
 	public void onMessageReceived( @NotNull MessageReceivedEvent event ) {
 		
-		if( !event.isFromGuild() || event.getChannelType() != ChannelType.TEXT ) {
-			return;
-		}
-		
 		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+		if( server == null || !chatManager.isCorrectChannel( event.getChannel().getIdLong() ) ) {
+			return;
+		}
 		User author = event.getAuthor();
+		if( chatManager.isOwnWebhook( author.getIdLong() ) ) {
+			return;
+		}
+		String message = event.getMessage().getContentDisplay();
+		Member member = event.getMember();
 		
-		if( server == null ||
-			!chatManager.isCorrectChannel( event.getChannel().getIdLong() ) ||
-			author.getIdLong() == discordManager.getSelfUser().getIdLong() ) {
+		if( member != null && discordCommandHandler.isCommand( message ) ) {
+			handleCommand( member, message, server );
 			return;
 		}
 		
-		Member member = event.getMember();
-		String message = event.getMessage().getContentDisplay();
+		if( shouldMessageBeCanceled( author, event.getMessage() ) ) {
+			return;
+		}
 		
-		if( author.isBot() ) {
-			handleBotMessage( message, server );
-		} else {
-			if( member != null ) {
-				if( discordCommandHandler.isCommand( message ) ) {
-					discordCommandHandler.handleCommand( member, message, server, chatManager::sendFeedbackMessage );
-				} else {
-					if( beginnsNotWithOtherCommandPrefix( message ) ) {
-						handleUserMessage( member, message, server );
-					}
-				}
+		if( isMessageTooLong( message ) ) {
+			handleTooLongMessage( member, message );
+			return;
+		}
+		
+		try {
+			Component messageComponent = formatMessageForMinecraft( author, member, message );
+			for( Component line : messageComponent.toFlatList() ) {
+				server.getPlayerList().broadcastSystemMessage( line, false );
 			}
+		} catch( JsonParseException exception ) {
+			log.error( "Invalid raw format for Discord to Minecraft messages", exception );
+			handleMalformedJsonFormatForRawMessage( member, exception );
 		}
 	}
 	
-	private boolean beginnsNotWithOtherCommandPrefix( @NotNull String message ) {
+	private void handleCommand( Member member, String command, MinecraftServer server ) {
 		
-		return serverConfig.getCommandSettingsConfig().getOtherBotsCommandPrefixes()
-			.stream()
-			.noneMatch( message::startsWith );
+		discordCommandHandler.handleCommand(
+			member,
+			command,
+			server,
+			chatManager::sendFeedbackMessage
+		);
 	}
 	
-	private void handleBotMessage( @NotNull String message, @NotNull MinecraftServer server ) {
+	private boolean shouldMessageBeCanceled( User author, Message message ) {
 		
-		// Other bots' messages are transmitted, the feedback messages of this mod's own commands are not
-		if( serverConfig.getChatConfig().transmitBotMessages() &&
-			!discordMessageBuilder.isMessageBotFeedback( message ) ) {
-			server.getPlayerList().broadcastSystemMessage(
-				Component.literal( message ),
-				false
-			);
-		}
+		String rawMessage = message.getContentRaw();
+		boolean isOwnBotFeedback = author.getIdLong() == discordManager.getSelfUser().getIdLong() &&
+			discordMessageBuilder.isMessageBotFeedback( rawMessage );
+		boolean isIgnoredBotMessage = ( author.isBot() || message.isWebhookMessage() ) &&
+			!serverConfig.getChatConfig().transmitBotMessages();
+		return isOwnBotFeedback ||
+			isIgnoredBotMessage ||
+			isCommandOfOtherBots( rawMessage );
 	}
 	
-	private void handleUserMessage(
-		@NotNull Member member,
-		@NotNull String message,
-		@NotNull MinecraftServer server ) {
+	private boolean isCommandOfOtherBots( String rawMessage ) {
 		
-		if( serverConfig.getChatConfig().getMaxCharCount() == -1 ||
-			message.length() <= serverConfig.getChatConfig().getMaxCharCount() ) {
-			boolean useRawMessageFormat = serverConfig.getChatConfig().useRawMessageFormatDiscordToMinecraft();
-			String buildMessage = MessageUtil.replaceParameters(
-				serverConfig.getChatConfig().getMessageFormatDiscordToMinecraft(),
-				Map.of(
-					"username", escapeForRawMessageFormat( useRawMessageFormat, discordManager.getMemberAsTag( member ) ),
-					"nickname", escapeForRawMessageFormat( useRawMessageFormat, member.getEffectiveName() ),
-					"message", escapeForRawMessageFormat( useRawMessageFormat, message )
-				)
-			);
-			if( useRawMessageFormat ) {
-				try {
-					server.getPlayerList().broadcastSystemMessage(
-						ComponentArgument.textComponent(
-							CommandBuildContext.simple(
-								server.registryAccess(),
-								server.getWorldData().enabledFeatures()
-							)
-						).parse( new StringReader( buildMessage ) ),
-						false
-					);
-				} catch( CommandSyntaxException exception ) {
-					chatManager.sendFeedbackMessage(
-						MessageUtil.replaceParameters(
-							serverConfig.getChatConfig()
-								.getInvalidRawMessageFormatForDiscordToMinecraftErrorMessage(),
-							Map.of(
-								"username", discordManager.getMemberAsTag( member ),
-								"nickname", member.getEffectiveName(),
-								"error_message", exception.getMessage(),
-								"new_line", System.lineSeparator()
-							)
-						)
-					);
-				}
-			} else {
-				server.getPlayerList().broadcastSystemMessage(
-					Component.literal( buildMessage ),
-					false
-				);
+		for( String prefix : serverConfig.getCommandSettingsConfig().getOtherBotsCommandPrefixes() ) {
+			if( rawMessage.startsWith( prefix ) ) {
+				return true;
 			}
-		} else {
+		}
+		return false;
+	}
+	
+	private boolean isMessageTooLong( String message ) {
+		
+		int maxCharCount = serverConfig.getChatConfig().getMaxCharCount();
+		return maxCharCount != -1 && message.length() > maxCharCount;
+	}
+	
+	private void handleTooLongMessage( Member member, String message ) {
+		
+		if( member != null ) {
 			chatManager.sendFeedbackMessage(
 				MessageUtil.replaceParameters(
 					serverConfig.getChatConfig().getMaxCharCountErrorMessage(),
@@ -167,28 +145,90 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 			);
 		}
 	}
-
-	//With the raw message format the values from Discord are inserted into a text component (JSON, SNBT since 1.21.5),
-	//so they must not be able to add own elements, for example click events running commands.
-	//Unicode escapes work in both formats and in single and double quoted strings.
+	
 	@NotNull
-	private static String escapeForRawMessageFormat( boolean useRawMessageFormat, @NotNull String value ) {
-
-		if( !useRawMessageFormat ) {
-			return value;
+	private Component formatMessageForMinecraft( User author, Member member, String message )
+		throws JsonParseException {
+		
+		String displayName = member != null ? discordManager.getMemberAsTag( member ) : author.getEffectiveName();
+		String hoverHandle = "@" + ( member != null ? member.getUser().getName() : author.getName() );
+		boolean isRaw = serverConfig.getChatConfig().useRawMessageFormatDiscordToMinecraft();
+		if( isRaw ) {
+			String formattedMessage = MessageUtil.replaceParameters(
+				serverConfig.getChatConfig().getMessageFormatDiscordToMinecraft(),
+				Map.of(
+					"username", escapeForJsonString( displayName ),
+					"nickname", escapeForJsonString( displayName ),
+					"message", escapeForJsonString( message )
+				)
+			);
+			return Component.Serializer.fromJson(
+				formattedMessage,
+				ServerLifecycleHooks.getCurrentServer().registryAccess()
+			);
 		}
-		StringBuilder escaped = new StringBuilder( value.length() );
-		for( char character : value.toCharArray() ) {
-			switch( character ) {
-				case '\\' -> escaped.append( "\\u005c" );
-				case '"' -> escaped.append( "\\u0022" );
-				case '\'' -> escaped.append( "\\u0027" );
-				case '\n' -> escaped.append( "\\n" );
-				case '\r' -> escaped.append( "\\r" );
-				case '\t' -> escaped.append( "\\t" );
-				default -> escaped.append( character );
+		return buildMinecraftComponentWithHover(
+			serverConfig.getChatConfig().getMessageFormatDiscordToMinecraft(),
+			displayName,
+			hoverHandle,
+			message
+		);
+	}
+	
+	@NotNull
+	private Component buildMinecraftComponentWithHover(
+		@NotNull String format,
+		@NotNull String displayName,
+		@NotNull String hoverHandle,
+		@NotNull String message ) {
+		
+		String normalizedFormat = format.replace( "%username%", "%nickname%" );
+		String token = "%nickname%";
+		Component nameComponent = Component.literal( displayName ).withStyle(
+			style -> style.withHoverEvent(
+				new HoverEvent( HoverEvent.Action.SHOW_TEXT, Component.literal( hoverHandle ) )
+			)
+		);
+		
+		MutableComponent result = Component.empty();
+		int index = 0;
+		int matchIndex;
+		while( ( matchIndex = normalizedFormat.indexOf( token, index ) ) != -1 ) {
+			String before = normalizedFormat.substring( index, matchIndex ).replace( "%message%", message );
+			if( !before.isEmpty() ) {
+				result.append( Component.literal( before ) );
 			}
+			result.append( nameComponent.copy() );
+			index = matchIndex + token.length();
 		}
-		return escaped.toString();
+		String tail = normalizedFormat.substring( index ).replace( "%message%", message );
+		if( !tail.isEmpty() ) {
+			result.append( Component.literal( tail ) );
+		}
+		return result;
+	}
+	
+	@NotNull
+	private String escapeForJsonString( @NotNull String value ) {
+		
+		String jsonString = new JsonPrimitive( value ).toString();
+		return jsonString.substring( 1, jsonString.length() - 1 );
+	}
+	
+	private void handleMalformedJsonFormatForRawMessage( Member member, JsonParseException exception ) {
+		
+		if( member != null ) {
+			chatManager.sendFeedbackMessage(
+				MessageUtil.replaceParameters(
+					serverConfig.getChatConfig().getInvalidRawMessageFormatForDiscordToMinecraftErrorMessage(),
+					Map.of(
+						"username", discordManager.getMemberAsTag( member ),
+						"nickname", member.getEffectiveName(),
+						"error_message", exception.getMessage(),
+						"new_line", System.lineSeparator()
+					)
+				)
+			);
+		}
 	}
 }

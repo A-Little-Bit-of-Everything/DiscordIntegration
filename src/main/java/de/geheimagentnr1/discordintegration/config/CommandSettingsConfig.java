@@ -84,6 +84,7 @@ public class CommandSettingsConfig extends AbstractSubConfig {
 		commands.add( new OnlineCommandConfig( abstractMod, this ) );
 		commands.add( new SeedCommandConfig( abstractMod, this ) );
 		commands.add( new TimeCommandConfig( abstractMod, this ) );
+		commands.add( new WeatherCommandConfig( abstractMod, this ) );
 		commands.add( new TpsCommandConfig( abstractMod, this ) );
 		commands.add( new UnlinkCommandConfig( abstractMod, this ) );
 		//Modded commands
@@ -126,6 +127,16 @@ public class CommandSettingsConfig extends AbstractSubConfig {
 	@NotNull
 	public List<CommandConfig> getCommands() {
 		
-		return getSubConfigListValue( CommandConfig.class, COMMANDS_KEY );
+		List<CommandConfig> configuredCommands = getSubConfigListValue( CommandConfig.class, COMMANDS_KEY );
+		boolean hasWeatherCommand = configuredCommands.stream().anyMatch(
+			cmd -> "weather".equalsIgnoreCase( cmd.getDiscordCommand() ) ||
+				"discord weather".equalsIgnoreCase( cmd.getMinecraftCommand() )
+		);
+		if( !hasWeatherCommand ) {
+			List<CommandConfig> commands = new ArrayList<>( configuredCommands );
+			commands.add( new WeatherCommandConfig( abstractMod, this ) );
+			return commands;
+		}
+		return configuredCommands;
 	}
 }
