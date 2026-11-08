@@ -44,16 +44,16 @@ public class ForgeEventHandler {
 	@SubscribeEvent
 	public static void handleServerStartedEvent( FMLServerStartedEvent event ) {
 		
-		DiscordNet.sendMessage( ServerConfig.getStartMessage() );
+		DiscordNet.sendServerMessage( ServerConfig.getStartMessage() );
 	}
 	
 	@SubscribeEvent
 	public static void handleServerStoppedEvent( FMLServerStoppedEvent event ) {
 		
 		if( event.getServer().isServerRunning() ) {
-			DiscordNet.sendMessage( "Server crashed" );
+			DiscordNet.sendServerMessage( "Server crashed" );
 		} else {
-			DiscordNet.sendMessage( ServerConfig.getStopMessage() );
+			DiscordNet.sendServerMessage( ServerConfig.getStopMessage() );
 		}
 		DiscordNet.stop();
 	}
@@ -61,13 +61,21 @@ public class ForgeEventHandler {
 	@SubscribeEvent
 	public static void handlePlayerLoggedInEvent( PlayerEvent.PlayerLoggedInEvent event ) {
 		
-		DiscordNet.sendPlayerMessage( event.getPlayer(), "joined the game." );
+		DiscordNet.sendPlayerEventMessage(
+			event.getPlayer(),
+			"joined the game.",
+			ServerConfig.getPlayerJoinedUsePlayerWebhook()
+		);
 	}
 	
 	@SubscribeEvent
 	public static void handlePlayerLoggedOutEvent( PlayerEvent.PlayerLoggedOutEvent event ) {
 		
-		DiscordNet.sendPlayerMessage( event.getPlayer(), "disconnected." );
+		DiscordNet.sendPlayerEventMessage(
+			event.getPlayer(),
+			"disconnected.",
+			ServerConfig.getPlayerLeftUsePlayerWebhook()
+		);
 	}
 	
 	@SubscribeEvent
@@ -81,10 +89,20 @@ public class ForgeEventHandler {
 		
 		LivingEntity entity = event.getEntityLiving();
 		
-		if( entity instanceof PlayerEntity ||
-			entity instanceof TameableEntity && ( (TameableEntity)entity ).getOwnerId() != null ) {
+		if( entity instanceof PlayerEntity ) {
 			String name = entity.getDisplayName().getString();
-			DiscordNet.sendMessage(
+			String formattedDeathMessage = event.getSource()
+				.getDeathMessage( entity )
+				.getString()
+				.replace( name, "**" + name + "**" );
+			DiscordNet.sendPlayerRawOrServerMessage(
+				(PlayerEntity)entity,
+				formattedDeathMessage,
+				ServerConfig.getPlayerDiedUsePlayerWebhook()
+			);
+		} else if( entity instanceof TameableEntity && ( (TameableEntity)entity ).getOwnerId() != null ) {
+			String name = entity.getDisplayName().getString();
+			DiscordNet.sendServerMessage(
 				event.getSource()
 					.getDeathMessage( entity )
 					.getString()
@@ -99,13 +117,14 @@ public class ForgeEventHandler {
 		DisplayInfo displayInfo = event.getAdvancement().getDisplay();
 		
 		if( displayInfo != null && displayInfo.shouldAnnounceToChat() ) {
-			DiscordNet.sendPlayerMessage(
+			DiscordNet.sendPlayerEventMessage(
 				event.getPlayer(),
 				String.format(
 					"has made the advancement **%s**%n*%s*",
 					displayInfo.getTitle().getString(),
 					displayInfo.getDescription().getString()
-				)
+				),
+				ServerConfig.getPlayerGotAdvancementUsePlayerWebhook()
 			);
 		}
 	}
