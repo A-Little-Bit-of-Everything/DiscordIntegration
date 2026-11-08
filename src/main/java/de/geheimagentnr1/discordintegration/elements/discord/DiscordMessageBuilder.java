@@ -71,9 +71,21 @@ public class DiscordMessageBuilder {
 	}
 	
 	@NotNull
+	public String buildWebhookMeChatMessage( @NotNull String action ) {
+		
+		return "*" + action + "*";
+	}
+	
+	@NotNull
 	public String buildChatMessage( @NotNull Player player, @NotNull String message ) {
 		
 		return buildChatMessage( getEntityName( player ), message );
+	}
+	
+	@NotNull
+	public String buildWebhookChatMessage( @NotNull String message ) {
+		
+		return message;
 	}
 	
 	@NotNull

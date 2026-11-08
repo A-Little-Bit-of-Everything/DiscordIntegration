@@ -45,11 +45,17 @@ public class ChatConfig extends AbstractSubConfig {
 	private static final String SUPPRESS_SERVER_MESSAGES_KEY = "suppress_server_messages";
 	
 	@NotNull
+	private static final String SERVER_WEBHOOK_NAME_KEY = "server_webhook_name";
+	
+	@NotNull
+	private static final String SERVER_WEBHOOK_AVATAR_URL_KEY = "server_webhook_avatar_url";
+	
+	@NotNull
 	private static final String CHAT_MESSAGES_CONFIG_KEY = "messages";
 	
-	ChatConfig( @NotNull AbstractMod _abstractMod ) {
+	ChatConfig( @NotNull AbstractMod _abstractMod, @NotNull AbstractSubConfig _parent ) {
 		
-		super( _abstractMod );
+		super( _abstractMod, _parent );
 	}
 	
 	@Override
@@ -79,11 +85,11 @@ public class ChatConfig extends AbstractSubConfig {
 		);
 		registerConfigValue(
 			"Message format for Discord to Minecraft messages. " +
-				"(Available parameters: %username% = Discord username, " +
-				"%nickname% = Discord nickname, " +
+				"(Available parameters: %username% = Discord display name, " +
+				"%nickname% = Discord display name, " +
 				"%message% = Message)",
 			MESSAGE_FORMAT_DISCORD_TO_MINECRAFT_KEY,
-			"[%username%] %message%"
+			"[%nickname%] %message%"
 		);
 		registerConfigValue(
 			"Message format for Minecraft to Discord messages. " +
@@ -128,10 +134,20 @@ public class ChatConfig extends AbstractSubConfig {
 			SUPPRESS_SERVER_MESSAGES_KEY,
 			false
 		);
+		registerConfigValue(
+			"Custom webhook display name used for server messages (start, stop, crash, console say/me, etc.).",
+			SERVER_WEBHOOK_NAME_KEY,
+			"Minecraft Server"
+		);
+		registerConfigValue(
+			"Custom webhook avatar URL used for server messages. Leave empty to use the bot's Discord avatar.",
+			SERVER_WEBHOOK_AVATAR_URL_KEY,
+			""
+		);
 		registerSubConfig(
 			"Messages shown on Discord in the chat channel",
 			CHAT_MESSAGES_CONFIG_KEY,
-			new ChatMessagesConfig( abstractMod )
+			new ChatMessagesConfig( abstractMod, this )
 		);
 	}
 	
@@ -193,6 +209,18 @@ public class ChatConfig extends AbstractSubConfig {
 	public boolean suppressServerMessages() {
 		
 		return getValue( Boolean.class, SUPPRESS_SERVER_MESSAGES_KEY );
+	}
+	
+	@NotNull
+	public String getServerWebhookName() {
+		
+		return getValue( String.class, SERVER_WEBHOOK_NAME_KEY );
+	}
+	
+	@NotNull
+	public String getServerWebhookAvatarUrl() {
+		
+		return getValue( String.class, SERVER_WEBHOOK_AVATAR_URL_KEY );
 	}
 	
 	@NotNull
