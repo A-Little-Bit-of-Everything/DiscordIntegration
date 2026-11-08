@@ -14,6 +14,9 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.interactions.IntegrationType;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -66,7 +69,9 @@ public class DiscordCommandHandler extends AbstractDiscordIntegrationServiceProv
 				String rawName = commandConfig.getDiscordCommand().trim().toLowerCase( Locale.ROOT );
 				if( rawName.matches( "^[-_\\p{L}\\p{N}]{1,32}$" ) && registeredNames.add( rawName ) ) {
 					String description = buildSlashCommandDescription( commandConfig );
-					SlashCommandData slashCommand = Commands.slash( rawName, description );
+					SlashCommandData slashCommand = Commands.slash( rawName, description )
+						.setContexts( InteractionContextType.GUILD, InteractionContextType.BOT_DM )
+						.setIntegrationTypes( IntegrationType.GUILD_INSTALL );
 					if( commandConfig.useParameters() ) {
 						slashCommand.addOption(
 							OptionType.STRING,
@@ -84,13 +89,16 @@ public class DiscordCommandHandler extends AbstractDiscordIntegrationServiceProv
 				}
 			}
 		}
-		guild.updateCommands()
+		guild.updateCommands().queue(
+			null,
+			throwable -> log.warn( "Could not clear guild commands for guild {}", guild.getIdLong(), throwable )
+		);
+		guild.getJDA().updateCommands()
 			.addCommands( slashCommands )
 			.queue(
 				null,
 				throwable -> log.error(
-					"Could not register Discord slash commands for guild {}",
-					guild.getIdLong(),
+					"Could not register Discord global slash commands",
 					throwable
 				)
 			);
@@ -125,39 +133,65 @@ public class DiscordCommandHandler extends AbstractDiscordIntegrationServiceProv
 	
 	private void handleSlashCommandInteraction( @NotNull SlashCommandInteractionEvent event ) {
 		
-		if( !event.isFromGuild() || event.getMember() == null || event.getGuild() == null ) {
+		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+		if( server == null || !serverConfig().isLoaded() ) {
 			return;
 		}
-		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-		if( server == null ||
-			!serverConfig().isLoaded() ||
-			event.getGuild().getIdLong() != serverConfig().getBotConfig().getGuildId() ) {
+		net.dv8tion.jda.api.JDA jda = discordManager().getJda();
+		if( jda == null ) {
+			return;
+		}
+		Guild configuredGuild = jda.getGuildById( serverConfig().getBotConfig().getGuildId() );
+		if( configuredGuild == null ) {
 			return;
 		}
 		
-		Member member = event.getMember();
+		if( event.isFromGuild() ) {
+			if( event.getGuild() == null ||
+				event.getGuild().getIdLong() != configuredGuild.getIdLong() ||
+				event.getMember() == null ) {
+				return;
+			}
+			event.deferReply().queue(
+				interactionHook -> executeSlashCommand( event, event.getMember(), server, interactionHook ),
+				throwable -> log.error( "Failed to defer reply for slash command /{}", event.getName(), throwable )
+			);
+		} else {
+			event.deferReply().queue(
+				interactionHook -> configuredGuild.retrieveMember( event.getUser() ).queue(
+					member -> executeSlashCommand( event, member, server, interactionHook ),
+					throwable -> interactionHook.sendMessage( "You must be a member of the linked Discord server to use commands." ).queue()
+				),
+				throwable -> log.error( "Failed to defer reply for slash command /{} in DM", event.getName(), throwable )
+			);
+		}
+	}
+	
+	private void executeSlashCommand(
+		@NotNull SlashCommandInteractionEvent event,
+		@NotNull Member member,
+		@NotNull MinecraftServer server,
+		@NotNull InteractionHook interactionHook ) {
+		
 		OptionMapping argsOption = event.getOption( SLASH_ARGS_OPTION_NAME );
 		String fullCommand = serverConfig().getCommandSettingsConfig().getCommandPrefix() +
 			event.getName() +
 			( argsOption != null ? " " + argsOption.getAsString() : "" );
 		
-		event.deferReply().queue(
-			interactionHook -> handleCommand(
-				member,
-				fullCommand,
-				server,
-				feedbackMessage -> {
-					List<String> parts = discordMessageBuilder().buildFeedbackMessage( feedbackMessage );
-					if( parts.isEmpty() ) {
-						interactionHook.sendMessage( "Command executed." ).queue();
-					} else {
-						for( String messagePart : parts ) {
-							interactionHook.sendMessage( messagePart ).queue();
-						}
+		handleCommand(
+			member,
+			fullCommand,
+			server,
+			feedbackMessage -> {
+				List<String> parts = discordMessageBuilder().buildFeedbackMessage( feedbackMessage );
+				if( parts.isEmpty() ) {
+					interactionHook.sendMessage( "Command executed." ).queue();
+				} else {
+					for( String messagePart : parts ) {
+						interactionHook.sendMessage( messagePart ).queue();
 					}
 				}
-			),
-			throwable -> log.error( "Failed to defer reply for slash command /{}", event.getName(), throwable )
+			}
 		);
 	}
 	

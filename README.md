@@ -1,4 +1,4 @@
-# Discord Integration (NeoForge 1.21.1 - v4.0.4-modifiedforac)
+# Discord Integration (NeoForge 1.21.1 - v4.0.4.1-modifiedforac)
 
 This is a **NeoForge** server-side mod for **Minecraft 1.21.1** that links Minecraft server chat, events, and commands with Discord.  
 Originally created by [GeheimagentNr1](https://www.curseforge.com/minecraft/mc-mods/discord-integration) and modified by **TheAndromedaCat**.  
