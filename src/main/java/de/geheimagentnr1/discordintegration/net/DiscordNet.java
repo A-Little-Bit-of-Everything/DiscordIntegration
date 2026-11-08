@@ -1,12 +1,14 @@
 package de.geheimagentnr1.discordintegration.net;
 
 import de.geheimagentnr1.discordintegration.config.ServerConfig;
+import de.geheimagentnr1.discordintegration.elements.discord.DiscordCommandHandler;
 import de.geheimagentnr1.discordintegration.elements.discord.DiscordEventHandler;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.exceptions.InvalidTokenException;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.Webhook;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.exceptions.InvalidTokenException;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -33,6 +35,8 @@ public class DiscordNet {
 	
 	private static final Logger LOGGER = LogManager.getLogger( DiscordNet.class );
 	
+	private static final String WEBHOOK_NAME = "MinecraftChatBridge";
+	
 	public static final String FEEDBACK_START = "**```";
 	
 	public static final String FEEDBACK_END = "```**";
@@ -40,6 +44,8 @@ public class DiscordNet {
 	private static JDA jda;
 	
 	private static TextChannel channel;
+	
+	private static Webhook webhook;
 	
 	private static final List<GatewayIntent> INTENTS = Arrays.asList( GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT );
 	
@@ -56,10 +62,38 @@ public class DiscordNet {
 				channel = jda.getTextChannelById( ServerConfig.getChannelId() );
 				if( channel == null ) {
 					LOGGER.error( "Discord Text Channel {} not found", ServerConfig.getChannelId() );
+				} else {
+					initWebhook();
+					DiscordCommandHandler.registerSlashCommands( channel.getGuild() );
 				}
 			} catch( InvalidTokenException | InterruptedException exception ) {
 				LOGGER.error( "Login to Discord failed", exception );
 			}
+		}
+	}
+	
+	private static void initWebhook() {
+		
+		if( channel == null ) {
+			return;
+		}
+		try {
+			List<Webhook> webhooks = channel.retrieveWebhooks().complete();
+			long selfUserId = jda.getSelfUser().getIdLong();
+			webhook = webhooks.stream()
+				.filter( wh -> WEBHOOK_NAME.equals( wh.getName() ) &&
+					wh.getOwnerAsUser() != null &&
+					wh.getOwnerAsUser().getIdLong() == selfUserId &&
+					wh.getToken() != null )
+				.findFirst()
+				.orElseGet( () -> channel.createWebhook( WEBHOOK_NAME ).complete() );
+		} catch( Exception exception ) {
+			LOGGER.warn(
+				"Could not initialize webhook for Discord Text Channel {} (missing MANAGE_WEBHOOKS permission?), falling back to bot messages",
+				channel.getIdLong(),
+				exception
+			);
+			webhook = null;
 		}
 	}
 	
@@ -68,6 +102,7 @@ public class DiscordNet {
 		if( isJdaInitialized() ) {
 			jda.shutdown();
 			channel = null;
+			webhook = null;
 			jda = null;
 		}
 	}
@@ -85,33 +120,52 @@ public class DiscordNet {
 	public static synchronized boolean feedBackAllowed( TextChannel _channel, User author ) {
 		
 		return _channel.getIdLong() == ServerConfig.getChannelId() && _channel.getIdLong() == channel.getIdLong() &&
-			author.getIdLong() != jda.getSelfUser().getIdLong();
+			author.getIdLong() != jda.getSelfUser().getIdLong() &&
+			( webhook == null || author.getIdLong() != webhook.getIdLong() );
 	}
 	
-	public static void sendDeathMessage( LivingDeathEvent event, String customMessage ) {
+	public static void sendDeathMessage( LivingDeathEvent event, String customMessage, boolean usePlayerWebhook ) {
 		
 		LivingEntity entity = event.getEntityLiving();
 		String name = entity.getDisplayName().getString();
+		String deathMessage;
 		if( customMessage.isEmpty() ) {
-			sendMessage(
-				event.getSource()
-					.getLocalizedDeathMessage( entity )
-					.getString()
-					.replace( name, "**" + name + "**" )
-			);
+			deathMessage = event.getSource()
+				.getLocalizedDeathMessage( entity )
+				.getString()
+				.replace( name, "**" + name + "**" );
 		} else {
-			sendMessage( String.format( "**%s** %s", entity.getDisplayName().getString(), customMessage ) );
+			deathMessage = String.format( "**%s** %s", name, customMessage );
+		}
+		if( entity instanceof Player && usePlayerWebhook ) {
+			sendPlayerWebhookOrFallback( (Player)entity, deathMessage, deathMessage );
+		} else {
+			sendServerMessage( deathMessage );
+		}
+	}
+	
+	public static void sendPlayerEventMessage( Player player, String message, boolean usePlayerWebhook ) {
+		
+		String formatted = String.format( "**%s** %s", getPlayerName( player ), message );
+		if( usePlayerWebhook ) {
+			sendPlayerWebhookOrFallback( player, formatted, formatted );
+		} else {
+			sendServerMessage( formatted );
 		}
 	}
 	
 	public static void sendPlayerMessage( Player player, String message ) {
 		
-		sendMessage( String.format( "**%s** %s", getPlayerName( player ), message ) );
+		sendPlayerEventMessage( player, message, true );
 	}
 	
 	public static void sendChatMessage( Player player, String message ) {
 		
-		sendChatMessage( getPlayerName( player ), message );
+		sendPlayerWebhookOrFallback(
+			player,
+			message,
+			String.format( "**[%s]** %s", getPlayerName( player ), message )
+		);
 	}
 	
 	private static String getPlayerName( Player player ) {
@@ -131,12 +185,91 @@ public class DiscordNet {
 	
 	private static void sendCommandChatMessage( CommandSourceStack source, String message ) {
 		
-		sendChatMessage( source.getDisplayName().getString(), message );
+		String fallback = String.format( "**[%s]** %s", source.getDisplayName().getString(), message );
+		if( source.getEntity() instanceof Player ) {
+			sendPlayerWebhookOrFallback( (Player)source.getEntity(), message, fallback );
+		} else {
+			sendServerWebhookOrFallback( message, fallback );
+		}
 	}
 	
 	private static void sendChatMessage( String name, String message ) {
 		
 		sendMessage( String.format( "**[%s]** %s", name, message ) );
+	}
+	
+	public static void sendServerMessage( String message ) {
+		
+		sendServerWebhookOrFallback( message, message );
+	}
+	
+	private static synchronized void sendPlayerWebhookOrFallback(
+		Player player,
+		String webhookMessage,
+		String fallbackMessage ) {
+		
+		if( isInitialized() ) {
+			if( webhook != null ) {
+				sendWebhookMessage( getPlayerName( player ), getPlayerAvatarUrl( player ), webhookMessage );
+			} else {
+				sendMessage( fallbackMessage );
+			}
+		}
+	}
+	
+	private static synchronized void sendServerWebhookOrFallback(
+		String webhookMessage,
+		String fallbackMessage ) {
+		
+		if( isInitialized() ) {
+			if( webhook != null ) {
+				sendWebhookMessage( getServerWebhookName(), getServerAvatarUrl(), webhookMessage );
+			} else {
+				sendMessage( fallbackMessage );
+			}
+		}
+	}
+	
+	private static void sendWebhookMessage( String username, String avatarUrl, String message ) {
+		
+		try {
+			for( int start = 0; start < message.length(); start += 2000 ) {
+				String part = message.substring( start, Math.min( message.length(), start + 2000 ) );
+				webhook.sendMessage( part )
+					.setUsername( username )
+					.setAvatarUrl( avatarUrl )
+					.queue();
+			}
+		} catch( Exception exception ) {
+			LOGGER.error( "Webhook message could not be sent", exception );
+		}
+	}
+	
+	private static String getPlayerAvatarUrl( Player player ) {
+		
+		String profileName = player.getGameProfile().getName();
+		if( profileName != null && !profileName.trim().isEmpty() ) {
+			return "https://mc-heads.net/avatar/" + profileName + "/128.png";
+		}
+		return "https://mc-heads.net/avatar/" + player.getUUID() + "/128.png";
+	}
+	
+	private static String getServerWebhookName() {
+		
+		String configured = ServerConfig.getServerWebhookName();
+		if( configured != null && !configured.trim().isEmpty() ) {
+			return configured;
+		}
+		return jda.getSelfUser().getEffectiveName();
+	}
+	
+	private static String getServerAvatarUrl() {
+		
+		String configured = ServerConfig.getServerWebhookAvatarUrl();
+		if( configured != null && !configured.trim().isEmpty() ) {
+			return configured;
+		}
+		return jda.getSelfUser().getEffectiveAvatarUrl();
 	}
 	
 	public static void sendFeedbackMessage( String message ) {

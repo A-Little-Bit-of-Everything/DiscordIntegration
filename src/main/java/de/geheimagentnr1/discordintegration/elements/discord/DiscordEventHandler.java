@@ -5,10 +5,13 @@ import de.geheimagentnr1.discordintegration.net.DiscordNet;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.minecraft.Util;
 import net.minecraft.network.chat.ChatType;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
 
@@ -23,6 +26,17 @@ public class DiscordEventHandler extends ListenerAdapter {
 	public static void setServer( MinecraftServer _server ) {
 		
 		server = _server;
+	}
+	
+	@Override
+	public void onSlashCommandInteraction( @Nonnull SlashCommandInteractionEvent event ) {
+		
+		if( !event.isFromGuild() || event.getChannelType() != ChannelType.TEXT ) {
+			return;
+		}
+		if( isInitialized() && event.getChannel().getIdLong() == ServerConfig.getChannelId() ) {
+			DiscordCommandHandler.handleSlashCommandInteraction( event, server );
+		}
 	}
 	
 	@Override
@@ -42,11 +56,11 @@ public class DiscordEventHandler extends ListenerAdapter {
 					handleCommands( author, message );
 				} else {
 					if( beginnsNotWithOtherCommandPrefix( message ) ) {
-						if( ServerConfig.isUseNickname() && member != null ) {
-							handleUserMessage( member.getEffectiveName(), message );
-						} else {
-							handleUserMessage( author.getName(), message );
-						}
+						String displayName = ( ServerConfig.isUseNickname() && member != null ) ?
+							member.getEffectiveName() :
+							author.getEffectiveName();
+						String hoverHandle = "@" + author.getName();
+						handleUserMessage( displayName, hoverHandle, message );
 					}
 				}
 			}
@@ -90,15 +104,19 @@ public class DiscordEventHandler extends ListenerAdapter {
 		}
 	}
 	
-	private void handleUserMessage( String author, String message ) {
+	private void handleUserMessage( String author, String hoverHandle, String message ) {
 		
 		if( ServerConfig.getMaxCharCount() == -1 || message.length() <= ServerConfig.getMaxCharCount() ) {
+			MutableComponent nameComponent = new TextComponent( author ).withStyle(
+				style -> style.withHoverEvent(
+					new HoverEvent( HoverEvent.Action.SHOW_TEXT, new TextComponent( hoverHandle ) )
+				)
+			);
+			MutableComponent fullMessage = new TextComponent( "[" )
+				.append( nameComponent )
+				.append( new TextComponent( "] " + message ) );
 			server.getPlayerList().broadcastMessage(
-				new TextComponent( String.format(
-					"[%s] %s",
-					author,
-					message
-				) ),
+				fullMessage,
 				ChatType.CHAT,
 				Util.NIL_UUID
 			);
