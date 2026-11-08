@@ -1,7 +1,7 @@
 package de.geheimagentnr1.discordintegration.config.command_config;
 
 
-import com.electronwill.nightconfig.core.AbstractCommentedConfig;
+import com.electronwill.nightconfig.core.CommentedConfig;
 import de.geheimagentnr1.minecraft_forge_api.AbstractMod;
 import de.geheimagentnr1.minecraft_forge_api.config.AbstractListEntryConfig;
 import de.geheimagentnr1.minecraft_forge_api.config.AbstractSubConfig;
@@ -32,7 +32,7 @@ public class CommandConfig extends AbstractListEntryConfig {
 	public CommandConfig(
 		@NotNull AbstractMod _abstractMod,
 		@NotNull AbstractSubConfig _parent,
-		@NotNull AbstractCommentedConfig _abstractCommentedConfig ) {
+		@NotNull CommentedConfig _abstractCommentedConfig ) {
 		
 		super( _abstractMod, _parent, _abstractCommentedConfig );
 	}
