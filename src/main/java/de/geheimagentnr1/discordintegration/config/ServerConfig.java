@@ -34,6 +34,10 @@ public class ServerConfig {
 	
 	private static final ForgeConfigSpec.IntValue MAX_CHAR_COUNT;
 	
+	private static final ForgeConfigSpec.ConfigValue<String> SERVER_WEBHOOK_NAME;
+	
+	private static final ForgeConfigSpec.ConfigValue<String> SERVER_WEBHOOK_AVATAR_URL;
+	
 	private static final ForgeConfigSpec.BooleanValue SERVER_STARTED_MESSAGE_ENABLED;
 	
 	private static final ForgeConfigSpec.ConfigValue<String> SERVER_STARTED_MESSAGE;
@@ -50,13 +54,19 @@ public class ServerConfig {
 	
 	private static final ForgeConfigSpec.ConfigValue<String> PLAYER_JOINED_MESSAGE;
 	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_JOINED_USE_PLAYER_WEBHOOK;
+	
 	private static final ForgeConfigSpec.BooleanValue PLAYER_LEFT_MESSAGE_ENABLED;
 	
 	private static final ForgeConfigSpec.ConfigValue<String> PLAYER_LEFT_MESSAGE;
 	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_LEFT_USE_PLAYER_WEBHOOK;
+	
 	private static final ForgeConfigSpec.BooleanValue PLAYER_DIED_MESSAGE_ENABLED;
 	
 	private static final ForgeConfigSpec.ConfigValue<String> PLAYER_DIED_MESSAGE;
+	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_DIED_USE_PLAYER_WEBHOOK;
 	
 	private static final ForgeConfigSpec.BooleanValue TAMED_MOB_DIED_MESSAGE_ENABLED;
 	
@@ -65,6 +75,8 @@ public class ServerConfig {
 	private static final ForgeConfigSpec.BooleanValue PLAYER_GOT_ADVANCEMENT_MESSAGE_ENABLED;
 	
 	private static final ForgeConfigSpec.ConfigValue<String> PLAYER_GOT_ADVANCEMENT_MESSAGE;
+	
+	private static final ForgeConfigSpec.BooleanValue PLAYER_GOT_ADVANCEMENT_USE_PLAYER_WEBHOOK;
 	
 	private static final ForgeConfigSpec.BooleanValue TRANSMIT_BOT_MESSAGES;
 	
@@ -85,6 +97,12 @@ public class ServerConfig {
 		MAX_CHAR_COUNT = BUILDER.comment( "How long should Discord messages send to Minecraft Chat be at most? " +
 			"If the value is -1, there is no limit to the length." )
 			.defineInRange( "max_char_count", -1, -1, 2000 );
+		SERVER_WEBHOOK_NAME = BUILDER.comment(
+			"Custom webhook display name used for server messages (start, stop, crash, console say/me, etc.)." )
+			.define( "server_webhook_name", "Minecraft Server" );
+		SERVER_WEBHOOK_AVATAR_URL = BUILDER.comment(
+			"Custom webhook avatar URL used for server messages. Leave empty to use the bot's Discord avatar." )
+			.define( "server_webhook_avatar_url", "" );
 		BUILDER.comment( "Messages shown on Discord" )
 			.push( "messages" );
 		BUILDER.comment( "Options for the server start message" )
@@ -122,6 +140,9 @@ public class ServerConfig {
 		PLAYER_JOINED_MESSAGE = BUILDER.comment(
 			"Message send to the Discord chat, if a player joined. (<player name> <message>)" )
 			.define( "message", "joined the game." );
+		PLAYER_JOINED_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "use_player_webhook", true );
 		BUILDER.pop();
 		BUILDER.comment( "Options for the player left message" )
 			.push( "player_left" );
@@ -131,6 +152,9 @@ public class ServerConfig {
 		PLAYER_LEFT_MESSAGE = BUILDER.comment(
 			"Message send to the Discord chat, if a player left the server. (<player name> <message>)" )
 			.define( "message", "disconnected." );
+		PLAYER_LEFT_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "use_player_webhook", true );
 		BUILDER.pop();
 		BUILDER.comment( "Options for the player died message" )
 			.push( "player_died" );
@@ -141,6 +165,9 @@ public class ServerConfig {
 			"Message send to the Discord chat, if a player died. (<player name> <message>) If left empty, the default " +
 				"Minecraft message is send." )
 			.define( "message", "" );
+		PLAYER_DIED_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "use_player_webhook", true );
 		BUILDER.pop();
 		BUILDER.comment( "Options for the tamed mob died message" )
 			.push( "tamed_mob_died" );
@@ -161,6 +188,9 @@ public class ServerConfig {
 			"Message send to the Discord chat, if a player got an advancement. (<player name> <message>) " +
 				"**<advancement title>**<new line>*<advancement description>*" )
 			.define( "message", "has made the advancement" );
+		PLAYER_GOT_ADVANCEMENT_USE_PLAYER_WEBHOOK = BUILDER.comment(
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?" )
+			.define( "use_player_webhook", true );
 		BUILDER.pop();
 		BUILDER.pop();
 		BUILDER.comment( "Options how to deal with other bots" )
@@ -228,6 +258,12 @@ public class ServerConfig {
 			true,
 			"shows the tps statistic of the server and it's dimensions."
 		) );
+		commands.add( new CommandConfig(
+			"weather",
+			"discord weather",
+			true,
+			"shows the current weather on the server."
+		) );
 		if( VersionHelper.isDependecyWithVersionPresent( "dimension_access_manager" ) ) {
 			commands.add( new CommandConfig(
 				"dimensions",
@@ -262,6 +298,8 @@ public class ServerConfig {
 		LOGGER.info( "{} = {}", COMMAND_PREFIX.getPath(), COMMAND_PREFIX.get() );
 		LOGGER.info( "{} = {}", TRANSMIT_BOT_MESSAGES.getPath(), TRANSMIT_BOT_MESSAGES.get() );
 		LOGGER.info( "{} = {}", MAX_CHAR_COUNT.getPath(), MAX_CHAR_COUNT.get() );
+		LOGGER.info( "{} = {}", SERVER_WEBHOOK_NAME.getPath(), SERVER_WEBHOOK_NAME.get() );
+		LOGGER.info( "{} = {}", SERVER_WEBHOOK_AVATAR_URL.getPath(), SERVER_WEBHOOK_AVATAR_URL.get() );
 		LOGGER.info( "{} = {}", COMMANDS.getPath(), COMMANDS.get() );
 		LOGGER.info( "\"{}\" Server Config loaded", MOD_NAME );
 	}
@@ -299,6 +337,16 @@ public class ServerConfig {
 	public static int getMaxCharCount() {
 		
 		return MAX_CHAR_COUNT.get();
+	}
+	
+	public static String getServerWebhookName() {
+		
+		return SERVER_WEBHOOK_NAME.get();
+	}
+	
+	public static String getServerWebhookAvatarUrl() {
+		
+		return SERVER_WEBHOOK_AVATAR_URL.get();
 	}
 	
 	public static boolean getServerStartedMessageEnabled() {
@@ -341,6 +389,11 @@ public class ServerConfig {
 		return PLAYER_JOINED_MESSAGE.get();
 	}
 	
+	public static boolean getPlayerJoinedUsePlayerWebhook() {
+		
+		return PLAYER_JOINED_USE_PLAYER_WEBHOOK.get();
+	}
+	
 	public static boolean getPlayerLeftMessageEnabled() {
 		
 		return PLAYER_LEFT_MESSAGE_ENABLED.get();
@@ -351,6 +404,11 @@ public class ServerConfig {
 		return PLAYER_LEFT_MESSAGE.get();
 	}
 	
+	public static boolean getPlayerLeftUsePlayerWebhook() {
+		
+		return PLAYER_LEFT_USE_PLAYER_WEBHOOK.get();
+	}
+	
 	public static boolean getPlayerDiedMessageEnabled() {
 		
 		return PLAYER_DIED_MESSAGE_ENABLED.get();
@@ -359,6 +417,11 @@ public class ServerConfig {
 	public static String getPlayerDiedMessage() {
 		
 		return PLAYER_DIED_MESSAGE.get();
+	}
+	
+	public static boolean getPlayerDiedUsePlayerWebhook() {
+		
+		return PLAYER_DIED_USE_PLAYER_WEBHOOK.get();
 	}
 	
 	public static boolean getTamedMobDiedMessageEnabled() {
@@ -381,8 +444,25 @@ public class ServerConfig {
 		return PLAYER_GOT_ADVANCEMENT_MESSAGE.get();
 	}
 	
+	public static boolean getPlayerGotAdvancementUsePlayerWebhook() {
+		
+		return PLAYER_GOT_ADVANCEMENT_USE_PLAYER_WEBHOOK.get();
+	}
+	
 	public static List<? extends AbstractCommentedConfig> getCommands() {
 		
-		return COMMANDS.get();
+		List<AbstractCommentedConfig> result = new ArrayList<>( COMMANDS.get() );
+		boolean hasWeather = result.stream()
+			.anyMatch( c -> "discord weather".equals( CommandConfig.getMinecraftCommand( c ) ) ||
+				"weather".equals( CommandConfig.getDiscordCommand( c ) ) );
+		if( !hasWeather ) {
+			result.add( new CommandConfig(
+				"weather",
+				"discord weather",
+				true,
+				"shows the current weather on the server."
+			) );
+		}
+		return result;
 	}
 }

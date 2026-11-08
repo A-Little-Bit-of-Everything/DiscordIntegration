@@ -31,7 +31,7 @@ copyLicenses.dependsOn( "licenseReport" )
 
 version = "${major_version}.${minor_version}.${patch_version}"
 group = "${domain}.${mod_id}" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
-archivesBaseName = "${mod_id}"
+archivesBaseName = "${rootProject.name}-forge"
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(8) // Mojang ships Java 8 to end users, so your mod should target Java 8.
 
@@ -170,9 +170,6 @@ dependencies {
     shadow("org.apache.commons:commons-collections4:4.4") { transitive = false }
     implementation group: 'org.slf4j', name: 'slf4j-simple', version: "${slf4j_version}"
     shadow group: 'org.slf4j', name: 'slf4j-simple', version: "${slf4j_version}"
-
-    runtimeOnly fg.deobf("de.geheimagentnr1.dimension_access_manager:DimensionAccessManager-${mc_version}:${dam_version}")
-    runtimeOnly fg.deobf("de.geheimagentnr1.moremobgriefingoptions:MoreMobGriefingOptions-${mc_version}:${mmgo_version}")
 
     // Real examples
     // compile 'com.mod-buildcraft:buildcraft:6.0.8:dev'  // adds buildcraft to the dev env

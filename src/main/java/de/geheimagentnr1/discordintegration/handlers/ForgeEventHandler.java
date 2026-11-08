@@ -53,7 +53,7 @@ public class ForgeEventHandler {
 	public static void handleServerStartedEvent( FMLServerStartedEvent event ) {
 		
 		if( ServerConfig.getServerStartedMessageEnabled() ) {
-			DiscordNet.sendMessage( ServerConfig.getServerStartedMessage() );
+			DiscordNet.sendServerMessage( ServerConfig.getServerStartedMessage() );
 		}
 	}
 	
@@ -62,11 +62,11 @@ public class ForgeEventHandler {
 		
 		if( event.getServer().isRunning() ) {
 			if( ServerConfig.getServerCrashedMessageEnabled() ) {
-				DiscordNet.sendMessage( ServerConfig.getServerCrashedMessage() );
+				DiscordNet.sendServerMessage( ServerConfig.getServerCrashedMessage() );
 			}
 		} else {
 			if( ServerConfig.getServerStoppedMessageEnabled() ) {
-				DiscordNet.sendMessage( ServerConfig.getServerStoppedMessage() );
+				DiscordNet.sendServerMessage( ServerConfig.getServerStoppedMessage() );
 			}
 		}
 		DiscordNet.stop();
@@ -76,7 +76,11 @@ public class ForgeEventHandler {
 	public static void handlePlayerLoggedInEvent( PlayerEvent.PlayerLoggedInEvent event ) {
 		
 		if( ServerConfig.getPlayerJoinedMessageEnabled() ) {
-			DiscordNet.sendPlayerMessage( event.getPlayer(), ServerConfig.getPlayerJoinedMessage() );
+			DiscordNet.sendPlayerEventMessage(
+				event.getPlayer(),
+				ServerConfig.getPlayerJoinedMessage(),
+				ServerConfig.getPlayerJoinedUsePlayerWebhook()
+			);
 		}
 	}
 	
@@ -84,7 +88,11 @@ public class ForgeEventHandler {
 	public static void handlePlayerLoggedOutEvent( PlayerEvent.PlayerLoggedOutEvent event ) {
 		
 		if( ServerConfig.getPlayerLeftMessageEnabled() ) {
-			DiscordNet.sendPlayerMessage( event.getPlayer(), ServerConfig.getPlayerLeftMessage() );
+			DiscordNet.sendPlayerEventMessage(
+				event.getPlayer(),
+				ServerConfig.getPlayerLeftMessage(),
+				ServerConfig.getPlayerLeftUsePlayerWebhook()
+			);
 		}
 	}
 	
@@ -103,12 +111,20 @@ public class ForgeEventHandler {
 		
 		if( entity instanceof PlayerEntity ) {
 			if( ServerConfig.getPlayerDiedMessageEnabled() ) {
-				DiscordNet.sendDeathMessage( event, ServerConfig.getPlayerDiedMessage() );
+				DiscordNet.sendDeathMessage(
+					event,
+					ServerConfig.getPlayerDiedMessage(),
+					ServerConfig.getPlayerDiedUsePlayerWebhook()
+				);
 			}
 		} else {
 			if( entity instanceof TameableEntity && ( (TameableEntity)entity ).getOwnerUUID() != null ) {
 				if( ServerConfig.getTamedMobDiedMessageEnabled() ) {
-					DiscordNet.sendDeathMessage( event, ServerConfig.getTamedMobDiedMessage() );
+					DiscordNet.sendDeathMessage(
+						event,
+						ServerConfig.getTamedMobDiedMessage(),
+						false
+					);
 				}
 			}
 		}
@@ -121,14 +137,15 @@ public class ForgeEventHandler {
 		
 		if( displayInfo != null && displayInfo.shouldAnnounceChat() &&
 			ServerConfig.getPlayerGotAdvancementMessageEnabled() ) {
-			DiscordNet.sendPlayerMessage(
+			DiscordNet.sendPlayerEventMessage(
 				event.getPlayer(),
 				String.format(
 					"%s **%s**%n*%s*",
 					ServerConfig.getPlayerGotAdvancementMessage(),
 					displayInfo.getTitle().getString(),
 					displayInfo.getDescription().getString()
-				)
+				),
+				ServerConfig.getPlayerGotAdvancementUsePlayerWebhook()
 			);
 		}
 	}
