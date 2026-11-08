@@ -33,6 +33,7 @@ public abstract class AbstractListEntryConfig extends AbstractSubConfig {
 		
 		super( _abstractMod, _parent, new ModConfigSpec.Builder() );
 		spec = getBuilder().build();
+		commentedConfig = convertToNightConfig();
 	}
 	
 	@Override

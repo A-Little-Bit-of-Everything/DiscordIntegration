@@ -16,7 +16,7 @@ widely used encoders and decoders, the codec package also maintains a
 collection of phonetic encoding utilities.
      https://commons.apache.org/proper/commons-codec/
 
-Apache Commons Collections (4.5.0) - Apache-2.0
+Apache Commons Collections (4.6.0) - Apache-2.0
 The Apache Commons Collections package contains types that extend and augment the Java Collections Framework.
 https://commons.apache.org/proper/commons-collections/
 
@@ -188,7 +188,7 @@ providing Unicode and Globalization support
 translator to modify the result of translation.
       https://github.com/google/j2objc/
 
-Jackson datatype: JSR310 (2.20.1) - The Apache Software License, Version 2.0
+Jackson datatype: JSR310 (2.22.2) - The Apache Software License, Version 2.0
 Add-on module to support JSR-310 (Java 8 Date & Time API) data types.
 https://github.com/FasterXML/jackson-modules-java8
 
@@ -228,7 +228,7 @@ JCIP Annotations under Apache License (1.0-1) - Apache License, Version 2.0
 A clean room implementation of the JCIP Annotations based entirely on the specification provided by the javadocs.
 http://stephenc.github.com/jcip-annotations
 
-JDA (6.1.2) - The Apache Software License, Version 2.0
+JDA (6.7.0) - The Apache Software License, Version 2.0
 Java wrapper for the popular chat & VOIP service: Discord https://discord.com
 https://github.com/discord-jda/JDA
 
@@ -418,13 +418,13 @@ https://bitbucket.org/connect2id/nimbus-language-tags
 and server applications.
         https://bitbucket.org/connect2id/oauth-2.0-sdk-with-openid-connect-extensions
 
-okhttp (5.3.0) - The Apache Software License, Version 2.0
+okhttp (5.5.0) - The Apache Software License, Version 2.0
 Square’s meticulous HTTP client for Java and Kotlin.
-https://square.github.io/okhttp/
+https://lysine.dev/okhttp/
 
-okio (3.16.2) - The Apache Software License, Version 2.0
+okio (3.18.1) - The Apache Software License, Version 2.0
 A modern I/O library for Android, Java, and Kotlin Multiplatform.
-https://github.com/square/okio/
+https://github.com/lysine-dev/okio/
 
   oshi-core (6.6.5) - SPDX-License-Identifier: MIT
   A JNA-based (native) operating system information library for Java that aims to provide a
