@@ -70,6 +70,7 @@ public class DiscordManager extends AbstractDiscordIntegrationServiceProvider {
 							managementManager(),
 							discordCommandHandler()
 						) )
+						.addEventListeners( discordCommandHandler().createSlashCommandListener() )
 						.addEventListeners( new LinkingsEventHandler(
 							this,
 							linkingsManagementMessageManager(),
@@ -91,6 +92,7 @@ public class DiscordManager extends AbstractDiscordIntegrationServiceProvider {
 						chatManager().init();
 						managementManager().init();
 						linkingsManagementMessageManager().init();
+						discordCommandHandler().registerSlashCommands( guild );
 						if( serverStarted ) {
 							updateWhitelist();
 						}
@@ -261,6 +263,6 @@ public class DiscordManager extends AbstractDiscordIntegrationServiceProvider {
 	@NotNull
 	public String getMemberAsTag( @NotNull Member member ) {
 		
-		return member.getUser().getAsTag();
+		return member.getEffectiveName();
 	}
 }

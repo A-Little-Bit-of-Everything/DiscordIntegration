@@ -15,6 +15,12 @@ public class ChatConfig extends AbstractSubConfig {
 	private static final String CHANNEL_ID_KEY = "channel_id";
 	
 	@NotNull
+	private static final String SERVER_WEBHOOK_NAME_KEY = "server_webhook_name";
+	
+	@NotNull
+	private static final String SERVER_WEBHOOK_AVATAR_URL_KEY = "server_webhook_avatar_url";
+	
+	@NotNull
 	private static final String USE_RAW_MESSAGE_FORMAT_DISCORD_TO_MINECRAFT_KEY =
 		"use_raw_message_format_discord_to_minecraft";
 	
@@ -62,6 +68,16 @@ public class ChatConfig extends AbstractSubConfig {
 			( builder, path ) -> builder.defineInRange( path, 0, 0, Long.MAX_VALUE )
 		);
 		registerConfigValue(
+			"Custom server name displayed by the webhook for server start, stop, crash, and server messages.",
+			SERVER_WEBHOOK_NAME_KEY,
+			"Minecraft Server"
+		);
+		registerConfigValue(
+			"Optional avatar URL for the server webhook (leave empty to use the bot's avatar).",
+			SERVER_WEBHOOK_AVATAR_URL_KEY,
+			""
+		);
+		registerConfigValue(
 			"Use raw message format for Discord to Minecraft messages " +
 				"(examples: https://minecraft.fandom.com/wiki/Commands/tellraw#Examples)?",
 			USE_RAW_MESSAGE_FORMAT_DISCORD_TO_MINECRAFT_KEY,
@@ -83,7 +99,7 @@ public class ChatConfig extends AbstractSubConfig {
 				"%nickname% = Discord nickname, " +
 				"%message% = Message)",
 			MESSAGE_FORMAT_DISCORD_TO_MINECRAFT_KEY,
-			"[%username%] %message%"
+			"[%nickname%] %message%"
 		);
 		registerConfigValue(
 			"Message format for Minecraft to Discord messages. " +
@@ -143,6 +159,18 @@ public class ChatConfig extends AbstractSubConfig {
 	public long getChannelId() {
 		
 		return getValue( Long.class, CHANNEL_ID_KEY );
+	}
+	
+	@NotNull
+	public String getServerWebhookName() {
+		
+		return getValue( String.class, SERVER_WEBHOOK_NAME_KEY );
+	}
+	
+	@NotNull
+	public String getServerWebhookAvatarUrl() {
+		
+		return getValue( String.class, SERVER_WEBHOOK_AVATAR_URL_KEY );
 	}
 	
 	public boolean useRawMessageFormatDiscordToMinecraft() {

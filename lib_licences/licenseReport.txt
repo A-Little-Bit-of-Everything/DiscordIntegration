@@ -16,7 +16,7 @@ widely used encoders and decoders, the codec package also maintains a
 collection of phonetic encoding utilities.
      https://commons.apache.org/proper/commons-codec/
 
-Apache Commons Collections (4.5.0) - Apache-2.0
+Apache Commons Collections (4.6.0) - Apache-2.0
 The Apache Commons Collections package contains types that extend and augment the Java Collections Framework.
 https://commons.apache.org/proper/commons-collections/
 
@@ -166,19 +166,19 @@ providing Unicode and Globalization support
 translator to modify the result of translation.
       https://github.com/google/j2objc/
 
-Jackson datatype: JSR310 (2.20.1) - The Apache Software License, Version 2.0
+Jackson datatype: JSR310 (2.22.2) - The Apache Software License, Version 2.0
 Add-on module to support JSR-310 (Java 8 Date & Time API) data types.
 https://github.com/FasterXML/jackson-modules-java8
 
-Jackson-annotations (2.20) - The Apache Software License, Version 2.0
+Jackson-annotations (2.22) - The Apache Software License, Version 2.0
 Core annotations used for value types, used by Jackson data binding package.
 https://github.com/FasterXML/jackson
 
-Jackson-core (2.20.1) - The Apache Software License, Version 2.0
+Jackson-core (2.22.2) - The Apache Software License, Version 2.0
 Core Jackson processing abstractions (aka Streaming API), implementation for JSON
 https://github.com/FasterXML/jackson-core
 
-jackson-databind (2.20.1) - The Apache Software License, Version 2.0
+jackson-databind (2.22.2) - The Apache Software License, Version 2.0
 General data-binding functionality for Jackson: works on core streaming API
 https://github.com/FasterXML/jackson
 
@@ -202,7 +202,7 @@ Java-Objective-C-Bridge (1.1) - Apache License, Version 2.0
 A thin bridge that allows for two-way communication from Java to Objective-C.
 https://github.com/shannah/Java-Objective-C-Bridge
 
-JDA (6.1.2) - The Apache Software License, Version 2.0
+JDA (6.7.0) - The Apache Software License, Version 2.0
 Java wrapper for the popular chat & VOIP service: Discord https://discord.com
 https://github.com/discord-jda/JDA
 
@@ -390,13 +390,13 @@ NightConfig toml (3.8.3) - GNU Lesser General Public License v3.0
 A multi-format configuration library, toml module.
 https://github.com/TheElectronWill/night-config
 
-okhttp (5.3.0) - The Apache Software License, Version 2.0
+okhttp (5.5.0) - The Apache Software License, Version 2.0
 Square’s meticulous HTTP client for Java and Kotlin.
-https://square.github.io/okhttp/
+https://lysine.dev/okhttp/
 
-okio (3.16.2) - The Apache Software License, Version 2.0
+okio (3.18.1) - The Apache Software License, Version 2.0
 A modern I/O library for Android, Java, and Kotlin Multiplatform.
-https://github.com/square/okio/
+https://github.com/lysine-dev/okio/
 
   oshi-core (6.9.0) - MIT
   A JNA-based (native) operating system information library for Java that aims to provide a
