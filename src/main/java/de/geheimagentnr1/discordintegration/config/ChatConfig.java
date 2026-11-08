@@ -29,6 +29,10 @@ public class ChatConfig {
 	
 	private final ForgeConfigSpec.BooleanValue suppress_server_messages;
 	
+	private final ForgeConfigSpec.ConfigValue<String> server_webhook_name;
+	
+	private final ForgeConfigSpec.ConfigValue<String> server_webhook_avatar_url;
+	
 	private final ChatMessagesConfig chat_messages_config;
 	
 	//package-private
@@ -57,10 +61,10 @@ public class ChatConfig {
 			);
 		message_format_discord_to_minecraft = builder.comment(
 				"Message format for Discord to Minecraft messages. " +
-					"(Available parameters: %username% = Discord username, " +
-					"%nickname% = Discord nickname, " +
+					"(Available parameters: %username% = Discord display name, " +
+					"%nickname% = Discord display name, " +
 					"%message% = Message)" )
-			.define( "message_format_discord_to_minecraft", "[%username%] %message%" );
+			.define( "message_format_discord_to_minecraft", "[%nickname%] %message%" );
 		message_format_minecraft_to_discord = builder.comment(
 				"Message format for Minecraft to Discord messages. " +
 					"(Available parameters: %player% = Player name, " +
@@ -90,6 +94,12 @@ public class ChatConfig {
 		suppress_server_messages = builder.comment( "Suppress messages sent from the Minecraft server " +
 				"(for example, with the say command)?" )
 			.define( "suppress_server_messages", false );
+		server_webhook_name = builder.comment(
+				"Custom webhook display name used for server messages (start, stop, crash, console say/me, etc.)." )
+			.define( "server_webhook_name", "Minecraft Server" );
+		server_webhook_avatar_url = builder.comment(
+				"Custom webhook avatar URL used for server messages. Leave empty to use the bot's Discord avatar." )
+			.define( "server_webhook_avatar_url", "" );
 		chat_messages_config = new ChatMessagesConfig( builder );
 		builder.pop();
 	}
@@ -149,6 +159,16 @@ public class ChatConfig {
 		return suppress_server_messages.get();
 	}
 	
+	public String getServerWebhookName() {
+		
+		return server_webhook_name.get();
+	}
+	
+	public String getServerWebhookAvatarUrl() {
+		
+		return server_webhook_avatar_url.get();
+	}
+	
 	public ChatMessagesConfig getChatMessagesConfig() {
 		
 		return chat_messages_config;
@@ -189,6 +209,8 @@ public class ChatConfig {
 		logger.info( "{} = {}", max_char_count_error_message.getPath(), max_char_count_error_message.get() );
 		logger.info( "{} = {}", transmit_bot_messages.getPath(), transmit_bot_messages.get() );
 		logger.info( "{} = {}", suppress_server_messages.getPath(), suppress_server_messages.get() );
+		logger.info( "{} = {}", server_webhook_name.getPath(), server_webhook_name.get() );
+		logger.info( "{} = {}", server_webhook_avatar_url.getPath(), server_webhook_avatar_url.get() );
 		chat_messages_config.printConfig( logger );
 	}
 }

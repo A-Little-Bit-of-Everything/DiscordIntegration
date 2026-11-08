@@ -20,12 +20,14 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.GameRules;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.forgespi.language.IModInfo;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -46,6 +48,8 @@ public class DiscordCommand {
 			.executes( DiscordCommand::showGamerules ) );
 		discord.then( Commands.literal( "mods" )
 			.executes( DiscordCommand::showMods ) );
+		discord.then( Commands.literal( "weather" )
+			.executes( DiscordCommand::showWeather ) );
 		discord.then( Commands.literal( "linkings" )
 			// Admins manage the linkings in game, players only link themselves with commands sent from Discord
 			.requires( source -> source instanceof DiscordCommandSourceStack || source.hasPermission( 3 ) )
@@ -68,7 +72,9 @@ public class DiscordCommand {
 	private static int showCommands( CommandContext<CommandSourceStack> context ) {
 		
 		CommandSourceStack source = context.getSource();
-		List<? extends AbstractCommentedConfig> commands = ServerConfig.COMMAND_SETTINGS_CONFIG.getCommands();
+		List<AbstractCommentedConfig> commands = new ArrayList<>(
+			ServerConfig.COMMAND_SETTINGS_CONFIG.getCommands()
+		);
 		commands.sort( Comparator.comparing( CommandConfig::getDiscordCommand ) );
 		for( AbstractCommentedConfig commandConfig : commands ) {
 			if( CommandConfig.isEnabled( commandConfig ) ) {
@@ -136,6 +142,25 @@ public class DiscordCommand {
 				);
 			}
 		} );
+		return Command.SINGLE_SUCCESS;
+	}
+	
+	private static int showWeather( CommandContext<CommandSourceStack> context ) {
+		
+		CommandSourceStack source = context.getSource();
+		ServerLevel overworld = source.getServer().overworld();
+		String weatherState;
+		if( overworld.isThundering() ) {
+			weatherState = "thundering";
+		} else if( overworld.isRaining() ) {
+			weatherState = "raining";
+		} else {
+			weatherState = "clear";
+		}
+		source.sendSuccess(
+			() -> Component.literal( "The weather is currently " + weatherState + "." ),
+			false
+		);
 		return Command.SINGLE_SUCCESS;
 	}
 	

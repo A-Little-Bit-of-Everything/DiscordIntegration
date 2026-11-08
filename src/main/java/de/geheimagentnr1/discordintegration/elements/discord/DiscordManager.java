@@ -3,6 +3,7 @@ package de.geheimagentnr1.discordintegration.elements.discord;
 import de.geheimagentnr1.discordintegration.config.ServerConfig;
 import de.geheimagentnr1.discordintegration.elements.discord.chat.ChatManager;
 import de.geheimagentnr1.discordintegration.elements.discord.chat.ChatMessageEventHandler;
+import de.geheimagentnr1.discordintegration.elements.discord.commands.DiscordCommandHandler;
 import de.geheimagentnr1.discordintegration.elements.discord.linkings.LinkingsEventHandler;
 import de.geheimagentnr1.discordintegration.elements.discord.linkings.LinkingsManagementMessageManager;
 import de.geheimagentnr1.discordintegration.elements.discord.linkings.LinkingsManager;
@@ -63,11 +64,14 @@ public class DiscordManager {
 					ChatManager.init();
 					ManagementManager.init();
 					LinkingsManagementMessageManager.init();
+					DiscordCommandHandler.registerSlashCommands( guild );
 					if( serverStarted ) {
 						updateWhitelist();
 					}
 				}
-				updatePresence( ServerLifecycleHooks.getCurrentServer().getPlayerCount() );
+				if( ServerLifecycleHooks.getCurrentServer() != null ) {
+					updatePresence( ServerLifecycleHooks.getCurrentServer().getPlayerCount() );
+				}
 			} catch( Exception exception ) {
 				log.error( "Login to Discord failed", exception );
 			}
@@ -176,6 +180,6 @@ public class DiscordManager {
 	
 	public static String getMemberAsTag( Member member ) {
 		
-		return member.getUser().getAsTag();
+		return member.getEffectiveName();
 	}
 }
