@@ -90,11 +90,14 @@ public class DiscordManager extends AbstractDiscordIntegrationServiceProvider {
 						chatManager().init();
 						managementManager().init();
 						linkingsManagementMessageManager().init();
+						discordCommandHandler().registerSlashCommands( guild );
 						if( serverStarted ) {
 							updateWhitelist();
 						}
 					}
-					updatePresence( ServerLifecycleHooks.getCurrentServer().getPlayerCount() );
+					if( ServerLifecycleHooks.getCurrentServer() != null ) {
+						updatePresence( ServerLifecycleHooks.getCurrentServer().getPlayerCount() );
+					}
 				} catch( Exception exception ) {
 					log.error( "Login to Discord failed", exception );
 				}
@@ -249,6 +252,6 @@ public class DiscordManager extends AbstractDiscordIntegrationServiceProvider {
 	@NotNull
 	public String getMemberAsTag( @NotNull Member member ) {
 		
-		return member.getUser().getAsTag();
+		return member.getEffectiveName();
 	}
 }
