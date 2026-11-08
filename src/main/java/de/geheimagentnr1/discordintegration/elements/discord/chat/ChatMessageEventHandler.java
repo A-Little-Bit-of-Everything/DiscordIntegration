@@ -18,16 +18,23 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.arguments.ComponentArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 @RequiredArgsConstructor
 public class ChatMessageEventHandler extends ListenerAdapter {
 	
+	
+	@NotNull
+	private static final Pattern DISCORD_TO_MINECRAFT_TOKEN_PATTERN = Pattern.compile( "%(username|nickname|message)%" );
 	
 	@NotNull
 	private final ServerConfig serverConfig;
@@ -66,7 +73,8 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 		if( server == null ||
 			!serverConfig.isLoaded() ||
 			!chatManager.isCorrectChannel( event.getChannel().getIdLong() ) ||
-			author.getIdLong() == discordManager.getSelfUser().getIdLong() ) {
+			author.getIdLong() == discordManager.getSelfUser().getIdLong() ||
+			chatManager.isOwnWebhook( author.getIdLong() ) ) {
 			return;
 		}
 		
@@ -115,15 +123,15 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 		if( serverConfig.getChatConfig().getMaxCharCount() == -1 ||
 			message.length() <= serverConfig.getChatConfig().getMaxCharCount() ) {
 			boolean useRawMessageFormat = serverConfig.getChatConfig().useRawMessageFormatDiscordToMinecraft();
-			String buildMessage = MessageUtil.replaceParameters(
-				serverConfig.getChatConfig().getMessageFormatDiscordToMinecraft(),
-				Map.of(
-					"username", escapeForRawMessageFormat( useRawMessageFormat, discordManager.getMemberAsTag( member ) ),
-					"nickname", escapeForRawMessageFormat( useRawMessageFormat, member.getEffectiveName() ),
-					"message", escapeForRawMessageFormat( useRawMessageFormat, message )
-				)
-			);
 			if( useRawMessageFormat ) {
+				String buildMessage = MessageUtil.replaceParameters(
+					serverConfig.getChatConfig().getMessageFormatDiscordToMinecraft(),
+					Map.of(
+						"username", escapeForRawMessageFormat( true, discordManager.getMemberAsTag( member ) ),
+						"nickname", escapeForRawMessageFormat( true, member.getEffectiveName() ),
+						"message", escapeForRawMessageFormat( true, message )
+					)
+				);
 				try {
 					// Called via the brigadier interface: ComponentArgument.parse has a different signature since 1.21.5
 					ArgumentType<Component> componentArgument = ComponentArgument.textComponent(
@@ -152,7 +160,11 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 				}
 			} else {
 				server.getPlayerList().broadcastSystemMessage(
-					Component.literal( buildMessage ),
+					buildFormattedDiscordComponent(
+						serverConfig.getChatConfig().getMessageFormatDiscordToMinecraft(),
+						member,
+						message
+					),
 					false
 				);
 			}
@@ -170,6 +182,41 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 				)
 			);
 		}
+	}
+	
+	@NotNull
+	private Component buildFormattedDiscordComponent(
+		@NotNull String format,
+		@NotNull Member member,
+		@NotNull String message ) {
+		
+		Component displayNameWithHover = Component.literal( member.getEffectiveName() )
+			.withStyle( style -> style.withHoverEvent(
+				new HoverEvent(
+					HoverEvent.Action.SHOW_TEXT,
+					Component.literal( "@" + member.getUser().getName() )
+				)
+			) );
+		
+		MutableComponent result = Component.empty();
+		Matcher matcher = DISCORD_TO_MINECRAFT_TOKEN_PATTERN.matcher( format );
+		int lastEnd = 0;
+		while( matcher.find() ) {
+			if( matcher.start() > lastEnd ) {
+				result.append( Component.literal( format.substring( lastEnd, matcher.start() ) ) );
+			}
+			String token = matcher.group( 1 );
+			if( "message".equals( token ) ) {
+				result.append( Component.literal( message ) );
+			} else {
+				result.append( displayNameWithHover.copy() );
+			}
+			lastEnd = matcher.end();
+		}
+		if( lastEnd < format.length() ) {
+			result.append( Component.literal( format.substring( lastEnd ) ) );
+		}
+		return result;
 	}
 
 	//With the raw message format the values from Discord are inserted into a text component (JSON, SNBT since 1.21.5),
