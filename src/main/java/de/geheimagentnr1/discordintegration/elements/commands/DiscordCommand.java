@@ -17,6 +17,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRuleTypeVisitor;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -55,6 +56,8 @@ class DiscordCommand extends AbstractDiscordCommand {
 			.executes( this::showGamerules ) );
 		discord.then( Commands.literal( "mods" )
 			.executes( this::showMods ) );
+		discord.then( Commands.literal( "weather" )
+			.executes( this::showWeather ) );
 		discord.then( Commands.literal( "linkings" )
 			// Admins manage the linkings in game, players only link themselves with commands sent from Discord
 			.requires( source -> source instanceof DiscordCommandSourceStack || Commands.hasPermission( Commands.LEVEL_ADMINS ).test( source ) )
@@ -146,6 +149,25 @@ class DiscordCommand extends AbstractDiscordCommand {
 				);
 			}
 		} );
+		return Command.SINGLE_SUCCESS;
+	}
+	
+	private int showWeather( @NotNull CommandContext<CommandSourceStack> context ) {
+		
+		CommandSourceStack source = context.getSource();
+		ServerLevel level = source.getServer().overworld();
+		final String weatherState;
+		if( level.isThundering() ) {
+			weatherState = "thundering";
+		} else if( level.isRaining() ) {
+			weatherState = "raining";
+		} else {
+			weatherState = "clear";
+		}
+		source.sendSuccess(
+			() -> Component.literal( "The weather is currently " + weatherState + "." ),
+			false
+		);
 		return Command.SINGLE_SUCCESS;
 	}
 	

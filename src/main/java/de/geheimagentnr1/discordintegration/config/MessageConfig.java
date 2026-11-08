@@ -15,6 +15,9 @@ public class MessageConfig extends AbstractSubConfig {
 	private static final String MESSAGE_KEY = "message";
 	
 	@NotNull
+	private static final String USE_PLAYER_WEBHOOK_KEY = "use_player_webhook";
+	
+	@NotNull
 	private final String enabledComment;
 	
 	@NotNull
@@ -23,6 +26,10 @@ public class MessageConfig extends AbstractSubConfig {
 	@NotNull
 	private final String messageDefaultValue;
 	
+	private final boolean hasPlayerWebhookOption;
+	
+	private final boolean usePlayerWebhookDefaultValue;
+	
 	MessageConfig(
 		@NotNull AbstractMod _abstractMod,
 		@NotNull AbstractSubConfig _parent,
@@ -30,10 +37,24 @@ public class MessageConfig extends AbstractSubConfig {
 		@NotNull String messageComment,
 		@NotNull String messageDefaultValue ) {
 		
+		this( _abstractMod, _parent, enabledComment, messageComment, messageDefaultValue, false, false );
+	}
+	
+	MessageConfig(
+		@NotNull AbstractMod _abstractMod,
+		@NotNull AbstractSubConfig _parent,
+		@NotNull String enabledComment,
+		@NotNull String messageComment,
+		@NotNull String messageDefaultValue,
+		boolean hasPlayerWebhookOption,
+		boolean usePlayerWebhookDefaultValue ) {
+		
 		super( _abstractMod, _parent );
 		this.enabledComment = enabledComment;
 		this.messageComment = messageComment;
 		this.messageDefaultValue = messageDefaultValue;
+		this.hasPlayerWebhookOption = hasPlayerWebhookOption;
+		this.usePlayerWebhookDefaultValue = usePlayerWebhookDefaultValue;
 	}
 	
 	@Override
@@ -41,9 +62,16 @@ public class MessageConfig extends AbstractSubConfig {
 		
 		registerConfigValue( enabledComment, ENABLED_KEY, true );
 		registerConfigValue( messageComment, MESSAGE_KEY, messageDefaultValue );
+		if( hasPlayerWebhookOption ) {
+			registerConfigValue(
+				"Should this message use the player's name and avatar for the webhook (true) " +
+					"or the server webhook name and avatar (false)?",
+				USE_PLAYER_WEBHOOK_KEY,
+				usePlayerWebhookDefaultValue
+			);
+		}
 	}
 	
-	@NotNull
 	public boolean isEnabled() {
 		
 		return getValue( Boolean.class, ENABLED_KEY );
@@ -53,5 +81,10 @@ public class MessageConfig extends AbstractSubConfig {
 	public String getMessage() {
 		
 		return getValue( String.class, MESSAGE_KEY );
+	}
+	
+	public boolean usePlayerWebhook() {
+		
+		return hasPlayerWebhookOption && getValue( Boolean.class, USE_PLAYER_WEBHOOK_KEY );
 	}
 }

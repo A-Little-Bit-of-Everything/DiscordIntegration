@@ -1,5 +1,6 @@
 package de.geheimagentnr1.discordintegration.handlers;
 
+import de.geheimagentnr1.discordintegration.config.MessageConfig;
 import de.geheimagentnr1.discordintegration.config.ServerConfig;
 import de.geheimagentnr1.discordintegration.elements.discord.DiscordManager;
 import de.geheimagentnr1.discordintegration.elements.discord.DiscordMessageBuilder;
@@ -42,13 +43,25 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 	@NotNull
 	private final DiscordMessageBuilder discordMessageBuilder;
 	
+	private void sendConfiguredPlayerEventMessage(
+		@NotNull Player player,
+		@NotNull MessageConfig messageConfig,
+		@NotNull String message ) {
+		
+		if( messageConfig.usePlayerWebhook() ) {
+			chatManager.sendPlayerMessage( player, message, message );
+		} else {
+			chatManager.sendServerWebhookMessage( message, message );
+		}
+	}
+	
 	@Override
 	public void handleServerStartedEvent( @NotNull ServerStartedEvent event ) {
 		
 		// Initialize Discord connection when server starts (config values are now accessible)
 		discordManager.init();
 		if( serverConfig.getChatConfig().getChatMessagesConfig().getServerStarted().isEnabled() ) {
-			chatManager.sendMessage(
+			chatManager.sendServerWebhookMessage(
 				serverConfig.getChatConfig().getChatMessagesConfig().getServerStarted().getMessage()
 			);
 		}
@@ -65,7 +78,7 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 		
 		if( event.getServer().isRunning() ) {
 			if( serverConfig.getChatConfig().getChatMessagesConfig().getServerCrashed().isEnabled() ) {
-				chatManager.sendMessage(
+				chatManager.sendServerWebhookMessage(
 					serverConfig.getChatConfig().getChatMessagesConfig().getServerCrashed().getMessage()
 				);
 			}
@@ -76,7 +89,7 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 			}
 		} else {
 			if( serverConfig.getChatConfig().getChatMessagesConfig().getServerStopped().isEnabled() ) {
-				chatManager.sendMessage(
+				chatManager.sendServerWebhookMessage(
 					serverConfig.getChatConfig().getChatMessagesConfig().getServerStopped().getMessage()
 				);
 			}
@@ -92,22 +105,23 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 	@Override
 	public void handlePlayerLoggedInEvent( @NotNull PlayerEvent.PlayerLoggedInEvent event ) {
 		
-		if( serverConfig.getChatConfig().getChatMessagesConfig().getPlayerJoined().isEnabled() ) {
-			chatManager.sendMessage(
-				MessageUtil.replaceParameters(
-					serverConfig.getChatConfig().getChatMessagesConfig().getPlayerJoined().getMessage(),
-					Map.of(
-						"player", discordMessageBuilder.getEntityName( event.getEntity() )
-					)
+		Player player = event.getEntity();
+		MessageConfig playerJoinedConfig = serverConfig.getChatConfig().getChatMessagesConfig().getPlayerJoined();
+		if( playerJoinedConfig.isEnabled() ) {
+			String message = MessageUtil.replaceParameters(
+				playerJoinedConfig.getMessage(),
+				Map.of(
+					"player", discordMessageBuilder.getEntityName( player )
 				)
 			);
+			sendConfiguredPlayerEventMessage( player, playerJoinedConfig, message );
 		}
 		if( serverConfig.getManagementConfig().getManagementMessagesConfig().getPlayerJoined().isEnabled() ) {
 			managementManager.sendMessage(
 				MessageUtil.replaceParameters(
 					serverConfig.getManagementConfig().getManagementMessagesConfig().getPlayerJoined().getMessage(),
 					Map.of(
-						"player", discordMessageBuilder.getEntityName( event.getEntity() )
+						"player", discordMessageBuilder.getEntityName( player )
 					)
 				)
 			);
@@ -118,22 +132,23 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 	@Override
 	public void handlePlayerLoggedOutEvent( @NotNull PlayerEvent.PlayerLoggedOutEvent event ) {
 		
-		if( serverConfig.getChatConfig().getChatMessagesConfig().getPlayerLeft().isEnabled() ) {
-			chatManager.sendMessage(
-				MessageUtil.replaceParameters(
-					serverConfig.getChatConfig().getChatMessagesConfig().getPlayerLeft().getMessage(),
-					Map.of(
-						"player", discordMessageBuilder.getEntityName( event.getEntity() )
-					)
+		Player player = event.getEntity();
+		MessageConfig playerLeftConfig = serverConfig.getChatConfig().getChatMessagesConfig().getPlayerLeft();
+		if( playerLeftConfig.isEnabled() ) {
+			String message = MessageUtil.replaceParameters(
+				playerLeftConfig.getMessage(),
+				Map.of(
+					"player", discordMessageBuilder.getEntityName( player )
 				)
 			);
+			sendConfiguredPlayerEventMessage( player, playerLeftConfig, message );
 		}
 		if( serverConfig.getManagementConfig().getManagementMessagesConfig().getPlayerLeft().isEnabled() ) {
 			managementManager.sendMessage(
 				MessageUtil.replaceParameters(
 					serverConfig.getManagementConfig().getManagementMessagesConfig().getPlayerLeft().getMessage(),
 					Map.of(
-						"player", discordMessageBuilder.getEntityName( event.getEntity() )
+						"player", discordMessageBuilder.getEntityName( player )
 					)
 				)
 			);
@@ -156,22 +171,22 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 		String name = discordMessageBuilder.getEntityName( entity );
 		String default_message = discordMessageBuilder.buildDeathMessage( event, entity, name );
 		
-		if( entity instanceof Player ) {
-			if( serverConfig.getChatConfig().getChatMessagesConfig().getPlayerDied().isEnabled() ) {
-				chatManager.sendMessage(
-					MessageUtil.replaceParameters(
-						serverConfig.getChatConfig().getChatMessagesConfig().getPlayerDied().getMessage(),
-						Map.of(
-							"player", name,
-							"default_message", default_message
-						)
+		if( entity instanceof Player player ) {
+			MessageConfig playerDiedConfig = serverConfig.getChatConfig().getChatMessagesConfig().getPlayerDied();
+			if( playerDiedConfig.isEnabled() ) {
+				String message = MessageUtil.replaceParameters(
+					playerDiedConfig.getMessage(),
+					Map.of(
+						"player", name,
+						"default_message", default_message
 					)
 				);
+				sendConfiguredPlayerEventMessage( player, playerDiedConfig, message );
 			}
 		} else {
 			if( entity instanceof TamableAnimal && ( (TamableAnimal)entity ).isTame() ) {
 				if( serverConfig.getChatConfig().getChatMessagesConfig().getTamedMobDied().isEnabled() ) {
-					chatManager.sendMessage(
+					chatManager.sendServerWebhookMessage(
 						MessageUtil.replaceParameters(
 							serverConfig.getChatConfig().getChatMessagesConfig().getTamedMobDied().getMessage(),
 							Map.of(
@@ -188,20 +203,20 @@ public class DiscordMessageHandler implements ForgeEventHandlerInterface {
 	@Override
 	public void handleAdvancementEarnEvent( @NotNull AdvancementEvent.AdvancementEarnEvent event ) {
 		
+		Player player = event.getEntity();
+		MessageConfig advancementConfig = serverConfig.getChatConfig().getChatMessagesConfig().getPlayerGotAdvancement();
 		event.getAdvancement().value().display().ifPresent( displayInfo -> {
-			if( displayInfo.announceToChat() &&
-				serverConfig.getChatConfig().getChatMessagesConfig().getPlayerGotAdvancement().isEnabled() ) {
-				chatManager.sendMessage(
-					MessageUtil.replaceParameters(
-						serverConfig.getChatConfig().getChatMessagesConfig().getPlayerGotAdvancement().getMessage(),
-						Map.of(
-							"player", discordMessageBuilder.getEntityName( event.getEntity() ),
-							"advancement_title", displayInfo.title().getString(),
-							"advancement_description", displayInfo.description().getString(),
-							"new_line", System.lineSeparator()
-						)
+			if( displayInfo.announceToChat() && advancementConfig.isEnabled() ) {
+				String message = MessageUtil.replaceParameters(
+					advancementConfig.getMessage(),
+					Map.of(
+						"player", discordMessageBuilder.getEntityName( player ),
+						"advancement_title", displayInfo.title().getString(),
+						"advancement_description", displayInfo.description().getString(),
+						"new_line", System.lineSeparator()
 					)
 				);
+				sendConfiguredPlayerEventMessage( player, advancementConfig, message );
 			}
 		} );
 	}
