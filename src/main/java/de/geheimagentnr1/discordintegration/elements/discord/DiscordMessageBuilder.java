@@ -41,6 +41,12 @@ public class DiscordMessageBuilder {
 	}
 	
 	@NotNull
+	public String getPlayerAvatarUrl( @NotNull Player player ) {
+		
+		return "https://mc-heads.net/avatar/" + player.getScoreboardName() + "/128.png";
+	}
+	
+	@NotNull
 	private String getCommandSourceStackName( @NotNull CommandSourceStack source ) {
 		
 		return source.getDisplayName().getString();
@@ -68,6 +74,12 @@ public class DiscordMessageBuilder {
 				"message", action
 			)
 		);
+	}
+	
+	@NotNull
+	public String buildWebhookMeChatMessage( @NotNull String action ) {
+		
+		return "*" + action + "*";
 	}
 	
 	@NotNull
