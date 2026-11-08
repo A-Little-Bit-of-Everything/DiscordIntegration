@@ -82,7 +82,9 @@ public class ChatMessagesConfig extends AbstractSubConfig {
 				"Should a message be sent to the Discord chat, if a player joined?",
 				"Message sent to the Discord chat, if a player joined. " +
 					"(Available parameters: %player% = Player name)",
-				"**%player%** joined the game."
+				"**%player%** joined the game.",
+				true,
+				true
 			)
 		);
 		registerSubConfig(
@@ -94,7 +96,9 @@ public class ChatMessagesConfig extends AbstractSubConfig {
 				"Should a message be sent to the Discord chat, if a player left?",
 				"Message sent to the Discord chat, if a player left the server. " +
 					"(Available parameters: %player% = Player name)",
-				"**%player%** disconnected."
+				"**%player%** disconnected.",
+				true,
+				true
 			)
 		);
 		registerSubConfig(
@@ -107,7 +111,9 @@ public class ChatMessagesConfig extends AbstractSubConfig {
 				"Message sent to the Discord chat, if a player died. " +
 					"(Available parameters: %player% = Player name, " +
 					"%default_message% = Default death message shown in the chat with bold player name)",
-				"%default_message%"
+				"%default_message%",
+				true,
+				true
 			)
 		);
 		registerSubConfig(
@@ -137,7 +143,9 @@ public class ChatMessagesConfig extends AbstractSubConfig {
 					"%new_line% = New line)",
 				"**%player%** has made the advancement%new_line%" +
 					"**%advancement_title%**%new_line%" +
-					"*%advancement_description%*"
+					"*%advancement_description%*",
+				true,
+				true
 			)
 		);
 	}
