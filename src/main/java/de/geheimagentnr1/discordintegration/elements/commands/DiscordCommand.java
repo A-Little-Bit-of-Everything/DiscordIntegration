@@ -17,6 +17,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.GameRules;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.forgespi.language.IModInfo;
@@ -53,6 +54,8 @@ class DiscordCommand extends AbstractDiscordCommand {
 			.executes( this::showGamerules ) );
 		discord.then( Commands.literal( "mods" )
 			.executes( this::showMods ) );
+		discord.then( Commands.literal( "weather" )
+			.executes( this::showWeather ) );
 		discord.then( Commands.literal( "linkings" )
 			// Admins manage the linkings in game, players only link themselves with commands sent from Discord
 			.requires( source -> source instanceof DiscordCommandSourceStack || source.hasPermission( 3 ) )
@@ -145,6 +148,25 @@ class DiscordCommand extends AbstractDiscordCommand {
 				);
 			}
 		} );
+		return Command.SINGLE_SUCCESS;
+	}
+	
+	private int showWeather( @NotNull CommandContext<CommandSourceStack> context ) {
+		
+		CommandSourceStack source = context.getSource();
+		ServerLevel overworld = source.getServer().overworld();
+		String weatherState;
+		if( overworld.isThundering() ) {
+			weatherState = "thundering";
+		} else if( overworld.isRaining() ) {
+			weatherState = "raining";
+		} else {
+			weatherState = "clear";
+		}
+		source.sendSuccess(
+			() -> Component.literal( "The weather is currently " + weatherState + "." ),
+			false
+		);
 		return Command.SINGLE_SUCCESS;
 	}
 	
