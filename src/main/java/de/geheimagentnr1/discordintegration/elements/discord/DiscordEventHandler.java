@@ -2,15 +2,20 @@ package de.geheimagentnr1.discordintegration.elements.discord;
 
 import de.geheimagentnr1.discordintegration.config.ServerConfig;
 import de.geheimagentnr1.discordintegration.net.DiscordNet;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Util;
 import net.minecraft.util.text.ChatType;
+import net.minecraft.util.text.IFormattableTextComponent;
 import net.minecraft.util.text.StringTextComponent;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.util.text.event.HoverEvent;
+
+import javax.annotation.Nonnull;
 
 
 public class DiscordEventHandler extends ListenerAdapter {
@@ -24,12 +29,24 @@ public class DiscordEventHandler extends ListenerAdapter {
 	}
 	
 	@Override
-	public void onMessageReceived( @NotNull MessageReceivedEvent event ) {
+	public void onSlashCommandInteraction( @Nonnull SlashCommandInteractionEvent event ) {
+		
+		if( !event.isFromGuild() || event.getChannelType() != ChannelType.TEXT ) {
+			return;
+		}
+		if( isInitialized() && event.getChannel().getIdLong() == ServerConfig.getChannelId() ) {
+			DiscordCommandHandler.handleSlashCommandInteraction( event, server );
+		}
+	}
+	
+	@Override
+	public void onMessageReceived( @Nonnull MessageReceivedEvent event ) {
 		
 		if( !event.isFromGuild() || event.getChannelType() != ChannelType.TEXT ) {
 			return;
 		}
 		User author = event.getAuthor();
+		Member member = event.getMember();
 		if( isInitialized() && DiscordNet.feedBackAllowed( event.getChannel().asTextChannel(), author ) ) {
 			String message = event.getMessage().getContentDisplay();
 			if( author.isBot() ) {
@@ -39,7 +56,9 @@ public class DiscordEventHandler extends ListenerAdapter {
 					handleCommands( author, message );
 				} else {
 					if( beginnsNotWithOtherCommandPrefix( message ) ) {
-						handleUserMessage( message, author );
+						String displayName = member != null ? member.getEffectiveName() : author.getEffectiveName();
+						String hoverHandle = "@" + author.getName();
+						handleUserMessage( displayName, hoverHandle, message );
 					}
 				}
 			}
@@ -83,15 +102,19 @@ public class DiscordEventHandler extends ListenerAdapter {
 		}
 	}
 	
-	private void handleUserMessage( String message, User author ) {
+	private void handleUserMessage( String author, String hoverHandle, String message ) {
 		
 		if( ServerConfig.getMaxCharCount() == -1 || message.length() <= ServerConfig.getMaxCharCount() ) {
+			IFormattableTextComponent nameComponent = new StringTextComponent( author ).func_240700_a_(
+				style -> style.func_240716_a_(
+					new HoverEvent( HoverEvent.Action.field_230550_a_, new StringTextComponent( hoverHandle ) )
+				)
+			);
+			IFormattableTextComponent fullMessage = new StringTextComponent( "[" )
+				.func_230529_a_( nameComponent )
+				.func_230529_a_( new StringTextComponent( "] " + message ) );
 			server.getPlayerList().func_232641_a_(
-				new StringTextComponent( String.format(
-					"[%s] %s",
-					author.getName(),
-					message
-				) ),
+				fullMessage,
 				ChatType.CHAT,
 				Util.field_240973_b_
 			);
@@ -100,7 +123,7 @@ public class DiscordEventHandler extends ListenerAdapter {
 				"%n%s%nError: Message to long.%n" +
 					"Messages can only be up to %d characters long.%n" +
 					"Your message is %d characters long.",
-				author.getName(),
+				author,
 				ServerConfig.getMaxCharCount(),
 				message.length()
 			) );
