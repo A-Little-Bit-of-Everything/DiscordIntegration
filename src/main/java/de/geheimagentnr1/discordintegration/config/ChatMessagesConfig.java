@@ -59,7 +59,9 @@ public class ChatMessagesConfig {
 			"Should a message be sent to the Discord chat, if a player joined?",
 			"Message sent to the Discord chat, if a player joined. " +
 				"(Available parameters: %player% = Player name)",
-			"**%player%** joined the game."
+			"**%player%** joined the game.",
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?",
+			true
 		);
 		player_left = new MessageConfig(
 			builder,
@@ -68,7 +70,9 @@ public class ChatMessagesConfig {
 			"Should a message be sent to the Discord chat, if a player left?",
 			"Message sent to the Discord chat, if a player left the server. " +
 				"(Available parameters: %player% = Player name)",
-			"**%player%** disconnected."
+			"**%player%** disconnected.",
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?",
+			true
 		);
 		player_died = new MessageConfig(
 			builder,
@@ -78,7 +82,9 @@ public class ChatMessagesConfig {
 			"Message sent to the Discord chat, if a player died. " +
 				"(Available parameters: %player% = Player name, " +
 				"%default_message% = Default death message shown in the chat with bold player name)",
-			"%default_message%"
+			"%default_message%",
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?",
+			true
 		);
 		tamed_mob_died = new MessageConfig(
 			builder,
@@ -102,7 +108,9 @@ public class ChatMessagesConfig {
 				"%new_line% = New line)",
 			"**%player%** has made the advancement%new_line%" +
 				"**%advancement_title%**%new_line%" +
-				"*%advancement_description%*"
+				"*%advancement_description%*",
+			"Should this message use the player's webhook name and skin avatar (true) or the server webhook name and avatar (false)?",
+			true
 		);
 		builder.pop();
 	}

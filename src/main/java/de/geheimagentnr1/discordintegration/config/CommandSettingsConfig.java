@@ -61,6 +61,7 @@ public class CommandSettingsConfig {
 		commands.add( new OnlineCommandConfig() );
 		commands.add( new SeedCommandConfig() );
 		commands.add( new TimeCommandConfig() );
+		commands.add( new WeatherCommandConfig() );
 		commands.add( new TpsCommandConfig() );
 		commands.add( new UnlinkCommandConfig() );
 		//Modded commands
@@ -99,7 +100,17 @@ public class CommandSettingsConfig {
 	
 	public List<? extends AbstractCommentedConfig> getCommands() {
 		
-		return commands.get();
+		List<? extends AbstractCommentedConfig> configuredCommands = commands.get();
+		boolean hasWeatherCommand = configuredCommands.stream().anyMatch(
+			cmd -> "weather".equalsIgnoreCase( CommandConfig.getDiscordCommand( cmd ) ) ||
+				"discord weather".equalsIgnoreCase( CommandConfig.getMinecraftCommand( cmd ) )
+		);
+		if( !hasWeatherCommand ) {
+			List<AbstractCommentedConfig> result = new ArrayList<>( configuredCommands );
+			result.add( new WeatherCommandConfig() );
+			return result;
+		}
+		return configuredCommands;
 	}
 	
 	//package-private
