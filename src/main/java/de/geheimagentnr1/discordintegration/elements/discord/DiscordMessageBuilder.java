@@ -55,9 +55,19 @@ public class DiscordMessageBuilder {
 		);
 	}
 	
+	public static String buildWebhookMeChatMessage( String action ) {
+		
+		return "*" + action + "*";
+	}
+	
 	public static String buildChatMessage( Player player, String message ) {
 		
 		return buildChatMessage( getEntityName( player ), message );
+	}
+	
+	public static String buildWebhookChatMessage( String message ) {
+		
+		return message;
 	}
 	
 	public static String buildChatMessage( CommandSourceStack source, Component message ) {

@@ -11,12 +11,16 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.minecraft.Util;
 import net.minecraft.commands.arguments.ComponentArgument;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
@@ -27,6 +31,12 @@ import java.util.Map;
 
 public class ChatMessageEventHandler extends ListenerAdapter {
 	
+	
+	@Override
+	public void onSlashCommandInteraction( @NotNull SlashCommandInteractionEvent event ) {
+		
+		DiscordCommandHandler.handleSlashCommandInteraction( event );
+	}
 	
 	@Override
 	public void onChannelDelete( @Nonnull ChannelDeleteEvent event ) {
@@ -50,7 +60,8 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 		
 		if( server == null ||
 			!ChatManager.isCorrectChannel( event.getChannel().getIdLong() ) ||
-			author.getIdLong() == DiscordManager.getSelfUser().getIdLong() ) {
+			author.getIdLong() == DiscordManager.getSelfUser().getIdLong() ||
+			ChatManager.isOwnWebhook( author.getIdLong() ) ) {
 			return;
 		}
 		
@@ -85,9 +96,9 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 			!DiscordMessageBuilder.isMessageBotFeedback( message ) ) {
 			server.getPlayerList().broadcastMessage(
 				new TextComponent( message ),
-				ChatType.CHAT,
-				Util.NIL_UUID
-			);
+					ChatType.CHAT,
+					Util.NIL_UUID
+				);
 		}
 	}
 	
@@ -96,27 +107,29 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 		if( ServerConfig.CHAT_CONFIG.getMaxCharCount() == -1 ||
 			message.length() <= ServerConfig.CHAT_CONFIG.getMaxCharCount() ) {
 			boolean useRawMessageFormat = ServerConfig.CHAT_CONFIG.useRawMessageFormatDiscordToMinecraft();
-			String buildMessage = MessageUtil.replaceParameters(
-				ServerConfig.CHAT_CONFIG.getMessageFormatDiscordToMinecraft(),
-				Map.of(
-					"username", escapeForRawMessageFormat( useRawMessageFormat, DiscordManager.getMemberAsTag( member ) ),
-					"nickname", escapeForRawMessageFormat( useRawMessageFormat, member.getEffectiveName() ),
-					"message", escapeForRawMessageFormat( useRawMessageFormat, message )
-				)
-			);
+			String displayName = DiscordManager.getMemberAsTag( member );
+			String hoverHandle = "@" + member.getUser().getName();
 			if( useRawMessageFormat ) {
+				String buildMessage = MessageUtil.replaceParameters(
+					ServerConfig.CHAT_CONFIG.getMessageFormatDiscordToMinecraft(),
+					Map.of(
+						"username", escapeForRawMessageFormat( true, displayName ),
+						"nickname", escapeForRawMessageFormat( true, member.getEffectiveName() ),
+						"message", escapeForRawMessageFormat( true, message )
+					)
+				);
 				try {
 					server.getPlayerList().broadcastMessage(
 						ComponentArgument.textComponent().parse( new StringReader( buildMessage ) ),
-						ChatType.CHAT,
-						Util.NIL_UUID
-					);
+					ChatType.CHAT,
+					Util.NIL_UUID
+				);
 				} catch( CommandSyntaxException exception ) {
 					ChatManager.sendFeedbackMessage(
 						MessageUtil.replaceParameters(
 							ServerConfig.CHAT_CONFIG.getInvalidRawMessageFormatForDiscordToMinecraftErrorMessage(),
 							Map.of(
-								"username", DiscordManager.getMemberAsTag( member ),
+								"username", displayName,
 								"nickname", member.getEffectiveName(),
 								"error_message", exception.getMessage(),
 								"new_line", System.lineSeparator()
@@ -126,7 +139,12 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 				}
 			} else {
 				server.getPlayerList().broadcastMessage(
-					new TextComponent( buildMessage ),
+					buildMinecraftComponentWithHover(
+						ServerConfig.CHAT_CONFIG.getMessageFormatDiscordToMinecraft(),
+						displayName,
+						hoverHandle,
+						message
+					),
 					ChatType.CHAT,
 					Util.NIL_UUID
 				);
@@ -146,13 +164,42 @@ public class ChatMessageEventHandler extends ListenerAdapter {
 			);
 		}
 	}
-
-	//With the raw message format the values from Discord are inserted into a text component (JSON, SNBT since 1.21.5),
-	//so they must not be able to add own elements, for example click events running commands.
-	//Unicode escapes work in both formats and in single and double quoted strings.
+	
+	private Component buildMinecraftComponentWithHover(
+		String format,
+		String displayName,
+		String hoverHandle,
+		String message ) {
+		
+		String normalizedFormat = format.replace( "%username%", "%nickname%" );
+		String token = "%nickname%";
+		Component nameComponent = new TextComponent( displayName ).withStyle(
+			style -> style.withHoverEvent(
+				new HoverEvent( HoverEvent.Action.SHOW_TEXT, new TextComponent( hoverHandle ) )
+			)
+		);
+		
+		MutableComponent result = new TextComponent( "" );
+		int index = 0;
+		int matchIndex;
+		while( ( matchIndex = normalizedFormat.indexOf( token, index ) ) != -1 ) {
+			String before = normalizedFormat.substring( index, matchIndex ).replace( "%message%", message );
+			if( !before.isEmpty() ) {
+				result.append( new TextComponent( before ) );
+			}
+			result.append( nameComponent.copy() );
+			index = matchIndex + token.length();
+		}
+		String tail = normalizedFormat.substring( index ).replace( "%message%", message );
+		if( !tail.isEmpty() ) {
+			result.append( new TextComponent( tail ) );
+		}
+		return result;
+	}
+	
 	@NotNull
 	private static String escapeForRawMessageFormat( boolean useRawMessageFormat, @NotNull String value ) {
-
+		
 		if( !useRawMessageFormat ) {
 			return value;
 		}

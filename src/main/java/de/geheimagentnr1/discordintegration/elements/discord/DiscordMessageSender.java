@@ -1,12 +1,21 @@
 package de.geheimagentnr1.discordintegration.elements.discord;
 
 import lombok.extern.log4j.Log4j2;
+import net.dv8tion.jda.api.entities.Webhook;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+
+import java.util.regex.Pattern;
 
 
 @Log4j2
 public class DiscordMessageSender {
 	
+	
+	private static final Pattern DISCORD_SUBSTRING_PATTERN =
+		Pattern.compile( "discord", Pattern.CASE_INSENSITIVE );
+	
+	private static final Pattern CLYDE_SUBSTRING_PATTERN =
+		Pattern.compile( "clyde", Pattern.CASE_INSENSITIVE );
 	
 	public static void sendMessage( TextChannel channel, String message ) {
 		
@@ -17,5 +26,40 @@ public class DiscordMessageSender {
 		} catch( Exception exception ) {
 			log.error( "Message could not be send to channel {}", channel.getIdLong(), exception );
 		}
+	}
+	
+	public static void sendWebhookMessage(
+		Webhook webhook,
+		String username,
+		String avatarUrl,
+		String message ) {
+		
+		try {
+			String safeUsername = sanitizeWebhookUsername( username );
+			for( int start = 0; start < message.length(); start += 2000 ) {
+				var action = webhook.sendMessage(
+					message.substring( start, Math.min( message.length(), start + 2000 ) )
+				).setUsername( safeUsername );
+				if( avatarUrl != null && !avatarUrl.isBlank() ) {
+					action = action.setAvatarUrl( avatarUrl );
+				}
+				action.queue();
+			}
+		} catch( Exception exception ) {
+			log.error( "Webhook message could not be sent via webhook {}", webhook.getIdLong(), exception );
+		}
+	}
+	
+	private static String sanitizeWebhookUsername( String username ) {
+		
+		String sanitized = DISCORD_SUBSTRING_PATTERN.matcher( username ).replaceAll( "D\u200Biscord" );
+		sanitized = CLYDE_SUBSTRING_PATTERN.matcher( sanitized ).replaceAll( "C\u200Blyde" );
+		if( sanitized.length() > 80 ) {
+			sanitized = sanitized.substring( 0, 80 );
+		}
+		if( sanitized.isBlank() ) {
+			return "Minecraft";
+		}
+		return sanitized;
 	}
 }
